@@ -1,0 +1,29 @@
+# Derived artifacts. No data, no weights, no patient-adjacent files, ever.
+results/
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+
+# Imaging data
+*.nii
+*.nii.gz
+*.b2nd
+*.npz
+*.npy
+*.mha
+*.nrrd
+
+# Notebook outputs
+notebooks/**/*.ipynb_checkpoints/
+.ipynb_checkpoints/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+.vscode/
+.idea/
