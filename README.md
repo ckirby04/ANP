@@ -45,6 +45,26 @@ numbers on the held-out test set (150). No ensembling, no multi-fold.
 See [`docs/dataset_report.md`](docs/dataset_report.md) for the full dataset
 characterization.
 
+## Pre-registration
+
+The pilot's pass/fail criteria and both directional predictions are fixed in
+[`docs/preregistration.md`](docs/preregistration.md), committed before the run.
+A flat trajectory is a real result, not something to be squinted past.
+
+Two gates. **Gate A** asks whether density moves at all and settles into a
+stable stage ordering; failing it means the RigL hyperparameters are mistuned
+for 3D. **Gate B** asks whether the movement is distinguishable from the
+Erdos-Renyi-Kernel prior, which allocates density by a task-independent
+parameter-per-activation rule and is computed in closed form by
+`src/sparsity/erk.py`.
+
+Gate B exists because ERK alone shifts the deepest stage by 0.059 and would
+pass Gate A on its own. Deep-stage drain is what ERK predicts for any conv net
+regardless of task, so observing it would not support the capacity
+misallocation claim. The discriminating signature is **non-monotonicity**: ERK
+is monotone decreasing in depth, so a mid-depth bulge at stages 2-3 above their
+ERK allocation cannot be produced by the null.
+
 ## Known limitations
 
 These are deviations from canonical practice, recorded up front rather than
