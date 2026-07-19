@@ -100,6 +100,29 @@ def test_load_one_case_shapes_and_labels():
     assert "spacing" in properties
 
 
+def test_no_ignore_label_in_dataset():
+    """Guards the precondition that makes the -1 remap match the reference run.
+
+    nnUNetTrainer maps -1 to background via RemoveLabelTansform(-1, 0) and only
+    masks voxels out of the loss when has_ignore_label is True. If an ignore
+    label were ever added to dataset.json, collapsing -1 to background would
+    start training on voxels the reference run excluded, changing the effective
+    class balance and invalidating the baseline comparison.
+    """
+    import json
+
+    from nnunetv2.utilities.label_handling.label_handling import LabelManager
+
+    with open(PREPROCESSED / "dataset.json") as fh:
+        labels = json.load(fh)["labels"]
+    assert labels == {"background": 0, "lesion": 1}
+
+    lm = LabelManager(labels, regions_class_order=None)
+    assert not lm.has_ignore_label
+    assert lm.ignore_label is None
+    assert not lm.has_regions
+
+
 def test_disk_negative_one_is_outside_brain_and_lesion_free():
     """The invariant that licenses collapsing -1 to background.
 

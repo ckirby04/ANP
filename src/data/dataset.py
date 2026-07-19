@@ -30,6 +30,16 @@ from torch.utils.data import Dataset
 #
 # This dataset has no ignore label, so neither source is annotation-bearing and
 # both are non-lesion. They are remapped to background before returning.
+#
+# This matches the reference fold-0 run rather than diverging from it.
+# nnUNetTrainer inserts RemoveLabelTansform(-1, 0) into both its training and
+# validation transform pipelines (nnUNetTrainer.py:800 and :855), and its
+# ignore-label masking path (:1056-1060) is gated on has_ignore_label, which is
+# False for this dataset since dataset.json declares only {background, lesion}.
+# The reference run therefore also trained on these voxels as background, so
+# the 178 s/epoch and ~0.90 pseudo-Dice reference points describe the same
+# class balance the arms here face. test_no_ignore_label_in_dataset guards the
+# precondition.
 SEG_OOB = -1
 
 
