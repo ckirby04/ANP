@@ -65,6 +65,23 @@ def erk_densities(shapes: dict[str, tuple[int, ...]], target_density: float,
     raise RuntimeError("ERK allocation did not converge")
 
 
+def live_budget_share(shapes: dict[str, tuple[int, ...]],
+                      densities: dict[str, float]) -> dict[str, float]:
+    """Each layer's share of the total live-parameter budget.
+
+    Per-layer density is a misleading primary readout when parameter counts are
+    this uneven: the shallow stages hold roughly 6 percent of encoder
+    parameters, so a stage can swing from 0.30 to 0.90 density while moving
+    almost no budget. Share of live parameters is what "capacity allocation"
+    actually means, and it is the headline figure.
+    """
+    live = {k: math.prod(shapes[k]) * densities[k] for k in shapes}
+    total = sum(live.values())
+    if total <= 0:
+        raise ValueError("no live parameters")
+    return {k: live[k] / total for k in shapes}
+
+
 def encoder_conv_shapes(features: list[int], n_conv_per_stage: list[int],
                         kernel_sizes: list[list[int]], in_channels: int,
                         skip_stem: bool = True) -> dict[str, tuple[int, ...]]:

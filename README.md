@@ -121,7 +121,16 @@ allocation and therefore the object under study.
 `results/trajectory/*.csv`, one row per sparsified layer per logging step:
 
 ```
-run_id, seed, arm, step, layer_name, density, n_pruned, n_regrown
+run_id, seed, arm, step, layer_name, stage, density, n_pruned, n_regrown,
+n_weights, n_live, live_budget_share
 ```
 
 Designed to be joined and plotted. This file is the result.
+
+`density` and `live_budget_share` are both logged because they can tell
+different stories. Encoder parameter counts are uneven enough that stages 0-2,
+at 6.1 percent of parameters, can swing 0.30 to 1.000 density while moving only
+3.3 points of budget. Density answers "how connected is this layer"; budget
+share answers "where did the capacity go", which is the question the paper
+asks. `n_weights` and `n_live` are logged so any aggregation, per stage or
+per shallow/deep split, is derivable without re-running.
