@@ -182,6 +182,16 @@ starting point by more than 0.05 density in at least one stage and more than 3
 points of deep-to-shallow budget split, using the same thresholds as Gate B.
 Staying put is a null result and is reported as one.
 
+**Disambiguating a static allocation.** If the allocation stays at ERK, a
+mistuned drop fraction and a genuinely converged mask look identical at the
+tail. They differ in history: a mistuned drop fraction gives low churn from
+step one because the mask was never asked to move, while a converged mask
+gives high churn early that decays as the topology settles. Churn is
+`(n_pruned + n_regrown) / n_live` per update, already derivable from the
+trajectory CSV, so this is read off the **early-training segment** of the
+existing pilot data at zero extra cost. Read it before concluding anything
+from a flat tail.
+
 **Cost.** 1 seed x 100 epochs, approximately 5.5 hours, before any decision to
 extend to 3 seeds.
 
