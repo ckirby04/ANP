@@ -342,7 +342,10 @@ class Trainer:
 
     def fit(self, resume: bool = True) -> list[dict]:
         if resume and self.load_checkpoint():
-            print(f"[{self.cfg.run_id}] resumed at epoch {self.epoch} step {self.step}")
+            # flush, because stdout is block-buffered when redirected to a log
+            # file and this line is the confirmation that a resume worked.
+            print(f"[{self.cfg.run_id}] resumed at epoch {self.epoch} "
+                  f"step {self.step}", flush=True)
 
         self._build_train_stream()
 
