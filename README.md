@@ -84,6 +84,25 @@ not reached the plateau the prior 315-epoch reference run did, so the pruning
 step lands on a still-improving model. This is a real deviation and is not
 presented as the canonical method.
 
+**Training is not bitwise reproducible.** `torch.use_deterministic_algorithms`
+is off, `cudnn.benchmark` and `cudnn.deterministic` are both False, and
+`CUBLAS_WORKSPACE_CONFIG` is unset. 3D convolution backward on cuDNN
+accumulates with non-deterministic atomics, so two runs at the same seed will
+not agree bit for bit. What *is* deterministic is the data pipeline: patch
+sampling is keyed on `(seed, epoch, global sample index)` and is independent of
+worker count and iteration order. Runs are reproducible in distribution, not
+exactly. Enabling determinism was deliberately not done mid-pilot, because it
+would make later arms non-comparable with those already run; it is a decision
+for the full matrix.
+
+**The pilot arms ran on the 8 GB RTX 3070 Ti, not the 16 GB RTX 5060 Ti.**
+CUDA's default `FASTEST_FIRST` device ordering does not match the index
+`nvidia-smi` reports, so the configured `cuda:0` resolved to the smaller card.
+The runs fit, at about 87 percent of its VRAM, and are valid; but they did not
+use the intended hardware and their `provenance.json` records only `cuda:0`,
+not the device name. Device selection is now by name with a startup assertion,
+and provenance records the resolved device name and VRAM.
+
 **Deep supervision is on.** nnU-Net's default deep-supervised loss changes
 encoder gradient magnitudes, which is what RigL's regrowth criterion reads. It
 is held identical across all four arms, but it is a confound on the trajectory

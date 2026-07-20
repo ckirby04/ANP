@@ -31,6 +31,12 @@ $env:nnUNet_raw = "G:\BraTS-MEN\nnUNet\nnUNet_raw"
 $env:nnUNet_preprocessed = "G:\BraTS-MEN\nnUNet\nnUNet_preprocessed"
 $env:nnUNet_results = "G:\BraTS-MEN\nnUNet\nnUNet_results"
 
+# CUDA's default FASTEST_FIRST ordering disagrees with nvidia-smi's. Under it,
+# cuda:0 on this machine is the 8 GB RTX 3070 Ti rather than the 16 GB 5060 Ti.
+# train.py sets this too; setting it here as well means it is right even when
+# python is invoked directly.
+$env:CUDA_DEVICE_ORDER = "PCI_BUS_ID"
+
 # fft_conv_pytorch, pulled in by GaussianBlurTransform, emits a deprecation
 # UserWarning on every worker spawn. It is benign and it floods the log.
 if (-not $env:PYTHONWARNINGS) {

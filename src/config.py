@@ -86,6 +86,12 @@ class Config:
     arm: str = "dense"
     seed: int = 0
     device: str = "cuda:0"
+    # The device is selected by NAME, not by this index. CUDA's default
+    # FASTEST_FIRST ordering does not match nvidia-smi's, and on this machine
+    # the default `cuda:0` is the 8 GB card, not the 16 GB one. Set to "" to
+    # select purely by index, which is not recommended.
+    require_device_name: str = "RTX 5060 Ti"
+    require_min_vram_gb: float = 15.0
     run_id: str = ""
     data: DataConfig = field(default_factory=DataConfig)
     train: TrainConfig = field(default_factory=TrainConfig)

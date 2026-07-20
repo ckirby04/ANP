@@ -156,6 +156,67 @@ foreground-oversampled and a background-dominated batch decreases with depth:
 Flagging only because if the pattern persists in the pilot it bears on the
 third-explanation-of-a-null question.
 
+### Correction: two claims I made that were wrong
+
+**1. I said training is deterministic given the seed. It is not.** Verified
+rather than assumed, at your prompting:
+
+```
+use_deterministic_algorithms : False
+cudnn.benchmark              : False
+cudnn.deterministic          : False
+CUBLAS_WORKSPACE_CONFIG      : <unset>
+```
+
+We set none of these anywhere. 3D conv backward on cuDNN uses non-deterministic
+atomic accumulation, so runs are not bitwise reproducible at fixed seed.
+
+What is deterministic is the **data pipeline**: patch sampling is keyed on
+`(seed, epoch, global sample index)`, independent of worker count and iteration
+order. That is what `src/data/dataset.py` documents and it is true. I
+over-generalised it to the whole training run when I told you the
+`static_sparse` slowdown could not affect the trajectory. That inference was
+unsupported. Corrected in README limitations, and `provenance.json` now records
+the determinism flags so every run carries its own evidence.
+
+Per your instruction determinism was **not** enabled, since that would make the
+remaining arms non-comparable with `dense_seed0` and `rigl_seed0`.
+
+**2. Every pilot arm ran on the wrong GPU.** `CUDA_DEVICE_ORDER` was unset, so
+CUDA used `FASTEST_FIRST`, which ranks the two cards differently from
+`nvidia-smi`:
+
+```
+default (what every run used):        PCI_BUS_ID (intended):
+  cuda:0 -> RTX 3070 Ti   8.0 GiB       cuda:0 -> RTX 5060 Ti  15.9 GiB
+  cuda:1 -> RTX 5060 Ti  15.9 GiB       cuda:1 -> RTX 3070 Ti   8.0 GiB
+```
+
+So `device: cuda:0` in every config resolved to the **8 GB** card. The runs fit
+at about 87 percent of its VRAM and are valid, but they did not use the
+intended hardware, and `provenance.json` recorded only `"cuda:0"` — which is
+not evidence of anything, since it is what a run on either card would report.
+
+This also inverts the contention diagnosis. The unattributed 3070 Ti load was
+*us*; the process on the 5060 Ti is a **PI-CAI evaluation job** (PID 7844,
+`eval_test_set_picai.py`, started 07-19 08:48, 18,315 CPU-s), which is not part
+of this project and which you have asked me to leave alone. The
+`static_sparse` slowdown to 0.998 s/iter was CPU and memory-bandwidth
+contention with it, not GPU contention.
+
+Fixed: `CUDA_DEVICE_ORDER=PCI_BUS_ID` is set in `train.py` before `torch` is
+imported and in `run_arm.ps1`; the device is resolved **by name** with the
+index only as a fallback; a startup assertion fails loudly with the device name
+and VRAM if the wrong card or too little memory is selected;
+`torch.cuda.set_device` is called so `autocast` and `GradScaler` act on the
+selected card; and provenance records the resolved name, VRAM, device order and
+full visible-device inventory. `tests/test_device.py` covers all of it,
+including a source scan asserting no code path targets bare `cuda` or `cuda:0`.
+
+**`oneshot_prune_seed0` was NOT restarted** and continues on the 3070 Ti, per
+your constraint. It is therefore consistent with the other three pilot arms,
+all of which also ran there.
+
 ### Arguments that a pre-registered element may be wrong
 
 Per your standing instruction I am logging these and **proceeding under the

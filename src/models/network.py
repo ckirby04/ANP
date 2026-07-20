@@ -14,6 +14,8 @@ trajectory.
 from __future__ import annotations
 
 import json
+import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -179,18 +181,123 @@ def stage_of(layer_name: str) -> int:
     return int(layer_name[len("stage"):].split(".", 1)[0])
 
 
-def device_from_config(device: str) -> torch.device:
-    """Resolve a configured device string, failing loudly if unavailable.
+REQUIRED_DEVICE_ORDER = "PCI_BUS_ID"
 
-    Single device only. Falling back to CPU silently would turn a 22-hour
-    pilot into an unfinishable one without any visible error.
+
+def set_cuda_device_order() -> None:
+    """Force PCI bus ordering. MUST run before CUDA initializes.
+
+    CUDA's default is FASTEST_FIRST, whose ranking does not match the index
+    `nvidia-smi` reports. On this machine the two disagree: under the default
+    ordering `cuda:0` is the 8 GB RTX 3070 Ti, while `nvidia-smi` calls the
+    16 GB RTX 5060 Ti device 0. Every run before this was added therefore
+    trained on the 8 GB card despite the config asking for `cuda:0`.
+
+    Pinning the order makes the index stable, but the index is still not what
+    the device is selected by; see `resolve_device`.
     """
-    d = torch.device(device)
-    if d.type == "cuda":
-        if not torch.cuda.is_available():
-            raise RuntimeError("config requests CUDA but torch.cuda.is_available() is False")
-        index = 0 if d.index is None else d.index
-        n = torch.cuda.device_count()
-        if index >= n:
-            raise RuntimeError(f"config requests {d} but only {n} CUDA device(s) visible")
-    return d
+    current = os.environ.get("CUDA_DEVICE_ORDER")
+    if current is None:
+        os.environ["CUDA_DEVICE_ORDER"] = REQUIRED_DEVICE_ORDER
+    elif current != REQUIRED_DEVICE_ORDER:
+        warnings.warn(
+            f"CUDA_DEVICE_ORDER is {current!r}, not {REQUIRED_DEVICE_ORDER!r}; "
+            "device indices may not match nvidia-smi", stacklevel=2)
+    if torch.cuda.is_initialized():
+        warnings.warn(
+            "CUDA was already initialized before the device order was set; "
+            "the ordering may not have taken effect", stacklevel=2)
+
+
+def describe_cuda_devices() -> list[dict]:
+    """Name, VRAM and capability of every visible CUDA device."""
+    if not torch.cuda.is_available():
+        return []
+    out = []
+    for i in range(torch.cuda.device_count()):
+        p = torch.cuda.get_device_properties(i)
+        out.append({
+            "index": i,
+            "name": p.name,
+            "total_vram_gb": round(p.total_memory / 1024 ** 3, 2),
+            "capability": f"{p.major}.{p.minor}",
+        })
+    return out
+
+
+def _format_devices(devices: list[dict]) -> str:
+    if not devices:
+        return "  (none visible)"
+    return "\n".join(
+        f"  cuda:{d['index']} -> {d['name']} ({d['total_vram_gb']} GiB, cc {d['capability']})"
+        for d in devices)
+
+
+def resolve_device(spec: str,
+                   require_device_name: str = "",
+                   require_min_vram_gb: float = 0.0) -> torch.device:
+    """Select the training device by NAME, then assert what was selected.
+
+    Selecting by index is what put every earlier run on the wrong card, so
+    when `require_device_name` is given the index in `spec` is only a fallback
+    and the name match decides. The assertion is unconditional: a run that
+    lands on the wrong GPU fails at startup with the device name and VRAM in
+    the message, rather than quietly producing results on the wrong hardware.
+
+    Single device only. Never falls back to CPU silently.
+    """
+    set_cuda_device_order()
+
+    d = torch.device(spec)
+    if d.type != "cuda":
+        if require_device_name or require_min_vram_gb:
+            raise RuntimeError(
+                f"device {spec!r} is not CUDA but a device requirement was set")
+        return d
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("config requests CUDA but torch.cuda.is_available() is False")
+
+    devices = describe_cuda_devices()
+    index = 0 if d.index is None else d.index
+
+    if require_device_name:
+        needle = require_device_name.lower()
+        matches = [x for x in devices if needle in x["name"].lower()]
+        if not matches:
+            raise RuntimeError(
+                f"no CUDA device matching {require_device_name!r}. Visible:\n"
+                f"{_format_devices(devices)}")
+        if len(matches) > 1:
+            raise RuntimeError(
+                f"{len(matches)} CUDA devices match {require_device_name!r}, "
+                f"so the target is ambiguous. Visible:\n{_format_devices(devices)}")
+        if matches[0]["index"] != index:
+            warnings.warn(
+                f"config asks for cuda:{index} but {require_device_name!r} is "
+                f"cuda:{matches[0]['index']}; using the name match",
+                stacklevel=2)
+        index = matches[0]["index"]
+
+    if index >= len(devices):
+        raise RuntimeError(
+            f"config requests cuda:{index} but only {len(devices)} device(s) "
+            f"visible:\n{_format_devices(devices)}")
+
+    chosen = devices[index]
+    if require_device_name and require_device_name.lower() not in chosen["name"].lower():
+        raise RuntimeError(
+            f"selected cuda:{index} is {chosen['name']!r}, which does not match "
+            f"the required {require_device_name!r}. Visible:\n{_format_devices(devices)}")
+    if chosen["total_vram_gb"] < require_min_vram_gb:
+        raise RuntimeError(
+            f"selected cuda:{index} ({chosen['name']}) has "
+            f"{chosen['total_vram_gb']} GiB, below the required "
+            f"{require_min_vram_gb} GiB. Visible:\n{_format_devices(devices)}")
+
+    device = torch.device(f"cuda:{index}")
+    # autocast and GradScaler are constructed with the device TYPE, so they act
+    # on the current device. Without this they could target a different card
+    # than the one the tensors live on.
+    torch.cuda.set_device(device)
+    return device

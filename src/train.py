@@ -14,14 +14,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import sys
 import time
 from pathlib import Path
 
-import numpy as np
-import torch
-from torch.utils.data import DataLoader
+# Set before torch is imported, so it is in place before the CUDA driver
+# initializes. CUDA's default FASTEST_FIRST ordering does not agree with
+# nvidia-smi's, and under it `cuda:0` on this machine is the 8 GB card.
+os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
+
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+from torch.utils.data import DataLoader  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -36,8 +42,9 @@ from data.splits import load_split, verify_split_available  # noqa: E402
 from models.network import (  # noqa: E402
     build_network,
     count_parameters,
-    device_from_config,
+    describe_cuda_devices,
     load_plan,
+    resolve_device,
 )
 
 CHECKPOINT = "checkpoint_latest.pt"
@@ -108,7 +115,9 @@ class Trainer:
     def __init__(self, cfg: Config, controller=None):
         self.cfg = cfg
         self.controller = controller
-        self.device = device_from_config(cfg.device)
+        self.device = resolve_device(cfg.device,
+                                     cfg.require_device_name,
+                                     cfg.require_min_vram_gb)
         set_seeds(cfg.seed)
 
         pre = Path(cfg.data.preprocessed_dir)
@@ -395,7 +404,23 @@ def main(argv=None):
         "batch_size": trainer.batch_size,
         "parameters": params,
         "device": str(trainer.device),
+        # The index alone is not evidence of which card ran the job: earlier
+        # runs recorded "cuda:0" while executing on the 8 GB card.
+        "device_name": (torch.cuda.get_device_name(trainer.device)
+                        if trainer.device.type == "cuda" else "cpu"),
+        "device_vram_gb": (round(torch.cuda.get_device_properties(
+            trainer.device).total_memory / 1024 ** 3, 2)
+            if trainer.device.type == "cuda" else None),
+        "cuda_device_order": os.environ.get("CUDA_DEVICE_ORDER", "<unset>"),
+        "visible_cuda_devices": describe_cuda_devices(),
         "torch": torch.__version__,
+        "determinism": {
+            # Recorded because it is NOT enforced. See docs and README.
+            "use_deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+            "cudnn_benchmark": torch.backends.cudnn.benchmark,
+            "cudnn_deterministic": torch.backends.cudnn.deterministic,
+            "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG", "<unset>"),
+        },
     }
     with open(trainer.run_dir / "provenance.json", "w") as fh:
         json.dump(provenance, fh, indent=2)

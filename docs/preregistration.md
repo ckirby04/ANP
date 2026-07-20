@@ -95,10 +95,26 @@ Gate B is therefore the scientific gate:
 The budget clause exists so that a departure confined to stages 0-2, which are
 6.1 percent of parameters, cannot pass on the density view alone.
 
-The sharpest available departure is **non-monotonicity**. ERK is monotone
-decreasing in depth. A mid-depth bulge, meaning stages 2-3 ending above their
-ERK allocation while stages 4-5 sit at or below theirs, cannot be produced by
-ERK and would be a genuine task-specific finding.
+One candidate departure is **non-monotonicity**. ERK is monotone decreasing in
+depth, so a stage-density sequence that is not monotone cannot be produced by
+ERK.
+
+**Correction, 2026-07-20 (description only; the gate conditions above are
+unchanged and were not modified).** An earlier version of this paragraph called
+non-monotonicity "the sharpest available departure". That overstates it.
+ERK already pins stages 0 and 1 at density 1.000, so for the sequence to
+become non-monotone some deeper stage would have to exceed a shallower stage
+that is already saturated. A trajectory can therefore be a large, genuine,
+task-specific departure from ERK at stages 2-3 and still be monotone
+decreasing overall; `test_mid_depth_bulge_passes_gate_b` constructs exactly
+such a case, and it clears both Gate B conditions while remaining monotone.
+
+Non-monotonicity is therefore **sufficient but not necessary**: observing it
+is strong evidence of a non-ERK allocation, but observing a monotone
+trajectory does NOT license concluding the result is ERK-like. Gate B's stated
+conditions, per-stage departure plus the budget clause, are what decide.
+`monotone_in_depth` is reported alongside the gates as one diagnostic among
+several.
 
 ## Directional predictions
 
