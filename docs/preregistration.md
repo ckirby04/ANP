@@ -182,6 +182,17 @@ starting point by more than 0.05 density in at least one stage and more than 3
 points of deep-to-shallow budget split, using the same thresholds as Gate B.
 Staying put is a null result and is reported as one.
 
+**A third explanation of a null.** Beyond a mistuned drop fraction and ERK
+being correct, the regrowth signal may simply be task-independent: lesion is
+about 0.1 percent of voxels, so the dense gradient RigL reads at masked
+positions can be dominated by trivially-negative background and carry little
+task information. That would drift the allocation toward ERK for a reason
+unrelated to nnU-Net's allocation being right, and unlike a mistuned drop
+fraction it is invisible to the churn diagnostic, since churn can look
+perfectly healthy while the selection is uninformative. It points at the
+foreground oversampling rate rather than at RigL hyperparameters. The
+regrowth-informativeness diagnostic in `src/sparsity/` measures it directly.
+
 **Disambiguating a static allocation.** If the allocation stays at ERK, a
 mistuned drop fraction and a genuinely converged mask look identical at the
 tail. They differ in history: a mistuned drop fraction gives low churn from

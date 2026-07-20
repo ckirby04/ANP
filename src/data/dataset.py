@@ -16,6 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import torch
 from acvl_utils.cropping_and_padding.bounding_boxes import crop_and_pad_nd
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDatasetBlosc2
 from torch.utils.data import Dataset
@@ -60,7 +61,24 @@ class BraTSMENPatches(Dataset):
                  patch_size: tuple[int, int, int],
                  length: int,
                  seed: int,
-                 oversample_foreground: float = 0.33):
+                 oversample_foreground: float = 0.33,
+                 transforms=None,
+                 start_index: int = 0):
+        """
+        Args:
+            patch_size: the size actually cropped from the volume. For training
+                this is nnU-Net's *initial* patch size, which is larger than the
+                final one so that rotation and scaling in SpatialTransform have
+                margin to work with; the transform pipeline crops down to the
+                final size. Sampling at the final size instead would introduce
+                rotation border artifacts the reference run does not have.
+            transforms: a batchgeneratorsv2 transform, applied per sample with
+                keyword args `image` and `segmentation`. When given, the
+                segmentation is passed through with -1 intact, because
+                MaskImageTransform reads seg < 0 to mask the image before
+                RemoveLabelTansform(-1, 0) strips it. Remapping -1 earlier would
+                silently turn that transform into a no-op.
+        """
         if not 0.0 <= oversample_foreground <= 1.0:
             raise ValueError(
                 f"oversample_foreground must be in [0, 1], got {oversample_foreground}")
@@ -73,6 +91,14 @@ class BraTSMENPatches(Dataset):
         self.length = int(length)
         self.seed = int(seed)
         self.oversample_foreground = float(oversample_foreground)
+        self.transforms = transforms
+        # Global sample offset. The training loader runs as one continuous
+        # stream for the whole run rather than one stream per epoch, because
+        # spawning DataLoader workers costs about 21 s on Windows and paying
+        # that every epoch would dominate the schedule. Resuming sets this to
+        # the already-consumed sample count so the stream picks up where it
+        # left off instead of replaying.
+        self.start_index = int(start_index)
         self._epoch = 0
 
         # Constructed lazily per worker process: blosc2 handles do not survive
@@ -89,9 +115,10 @@ class BraTSMENPatches(Dataset):
         return self._ds
 
     def _rng(self, index: int) -> np.random.Generator:
-        # Seeded per (seed, epoch, index) so a sample is reproducible without
-        # any dependence on worker count or iteration order.
-        return np.random.default_rng((self.seed, self._epoch, index))
+        # Seeded per (seed, epoch, global index) so a sample is reproducible
+        # without any dependence on worker count or iteration order.
+        return np.random.default_rng(
+            (self.seed, self._epoch, self.start_index + index))
 
     def _bbox(self, rng, shape: tuple[int, ...],
               properties: dict) -> list[list[int]]:
@@ -146,12 +173,29 @@ class BraTSMENPatches(Dataset):
         seg_patch = crop_and_pad_nd(seg, bbox, SEG_OOB)
 
         seg_patch = np.asarray(seg_patch)
-        # Collapses both the on-disk outside-brain region and the out-of-bounds
-        # padding to background. See the SEG_OOB note above.
-        seg_patch[seg_patch == SEG_OOB] = 0
 
+        if self.transforms is None:
+            # Raw mode, used by tests and diagnostics. Nothing downstream will
+            # consume the -1, so collapse both the on-disk outside-brain region
+            # and the out-of-bounds padding to background here.
+            seg_patch[seg_patch == SEG_OOB] = 0
+            return {
+                "data": np.ascontiguousarray(data_patch, dtype=np.float32),
+                "seg": np.ascontiguousarray(seg_patch, dtype=np.int8),
+                "identifier": identifier,
+            }
+
+        # Transform mode. -1 is left intact: MaskImageTransform masks the image
+        # where seg < 0, and RemoveLabelTansform(-1, 0) later in the same
+        # pipeline does the remap. Matches nnU-Net's own dataloader, which
+        # hands float32 image and int16 segmentation per sample with no batch
+        # dimension.
+        out = self.transforms(
+            image=torch.from_numpy(np.ascontiguousarray(data_patch)).float(),
+            segmentation=torch.from_numpy(np.ascontiguousarray(seg_patch)).to(torch.int16),
+        )
         return {
-            "data": np.ascontiguousarray(data_patch, dtype=np.float32),
-            "seg": np.ascontiguousarray(seg_patch, dtype=np.int8),
+            "data": out["image"],
+            "target": out["segmentation"],
             "identifier": identifier,
         }
