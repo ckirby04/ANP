@@ -65,6 +65,26 @@ def test_sets_current_device_to_the_selection():
 
 
 @cuda_only
+def test_index_override_alone_is_ineffective_and_warns():
+    """Overriding the index without the name does NOT move the job.
+
+    The name match decides, so `--set device=cuda:N` on its own resolves back
+    to the named card. It warns rather than failing, so a caller who wants a
+    different physical card must change the name too. scripts/run_arm.ps1 -Gpu
+    exists to set both together.
+    """
+    devices = describe_cuda_devices()
+    if len(devices) < 2:
+        pytest.skip("needs two CUDA devices")
+    target = max(devices, key=lambda d: d["total_vram_gb"])
+    other = min(devices, key=lambda d: d["total_vram_gb"])
+
+    with pytest.warns(UserWarning, match="using the name match"):
+        dev = resolve_device(f"cuda:{other['index']}", target["name"], 0.0)
+    assert dev.index == target["index"], "index override should not win"
+
+
+@cuda_only
 def test_unknown_device_name_raises_with_inventory():
     with pytest.raises(RuntimeError, match="no CUDA device matching"):
         resolve_device("cuda:0", "RTX 9090 Ti Ultra", 0.0)

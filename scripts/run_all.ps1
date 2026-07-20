@@ -16,6 +16,14 @@ param(
     [int]$Epochs = 100,
     [string[]]$Arms = @("dense", "rigl", "static_sparse", "oneshot_prune"),
     [string]$ResultsDir = "results",
+
+    # All four pilot arms ran on the 3070 Ti. Keep a matrix on ONE card so
+    # wall-clock stays comparable across arms, and pick the card the machine's
+    # other tenants are not using.
+    [ValidateSet("5060ti", "3070ti")]
+    [string]$Gpu = "5060ti",
+
+    [int]$Workers = 0,
     [switch]$NoResume
 )
 
@@ -36,7 +44,9 @@ foreach ($seed in $Seeds) {
             Write-Host ""
             Write-Host "=== $runId (attempt $attempt) ===" -ForegroundColor Cyan
 
-            $p = @{ Arm = $arm; Seed = $seed; Epochs = $Epochs; ResultsDir = $ResultsDir }
+            $p = @{ Arm = $arm; Seed = $seed; Epochs = $Epochs
+                    ResultsDir = $ResultsDir; Gpu = $Gpu }
+            if ($Workers -gt 0) { $p["Workers"] = $Workers }
             # Only attempt 1 honours -NoResume; a retry always resumes so it
             # picks up from the last checkpoint rather than restarting.
             if ($NoResume -and $attempt -eq 1) { $p["NoResume"] = $true }

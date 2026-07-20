@@ -217,6 +217,36 @@ including a source scan asserting no code path targets bare `cuda` or `cuda:0`.
 your constraint. It is therefore consistent with the other three pilot arms,
 all of which also ran there.
 
+### Sharing the machine with PI-CAI
+
+PI-CAI is expected to hold the **5060 Ti** for about 10 hours from 2026-07-20
+morning. Two things follow.
+
+**The device fix points future runs straight at it.** Correcting
+`CUDA_DEVICE_ORDER` means `cuda:0` now resolves to the 5060 Ti, which is
+PI-CAI's card. Left alone, the next matrix launch would have created direct GPU
+contention with it. `scripts/run_arm.ps1` and `run_all.ps1` now take
+`-Gpu 5060ti|3070ti`, which sets `device`, `require_device_name` and
+`require_min_vram_gb` together.
+
+**Overriding the index alone does not work, and does not fail either.** The
+name match is what decides, so `--set device=cuda:1` on its own resolves back
+to whatever `require_device_name` names, emits a warning, and runs on the card
+you were trying to leave. That is a worse failure mode than an abort, because
+it looks like it worked. Use `-Gpu`. Pinned by
+`test_index_override_alone_is_ineffective_and_warns`.
+
+**Recommendation while PI-CAI runs:** keep ANP on the **3070 Ti**
+(`-Gpu 3070ti`), and use `-Workers 8` or so rather than the default 12. The
+loader is memory-bandwidth bound, not just CPU bound, so it competes with
+PI-CAI for more than cores. This also happens to be the consistent choice:
+**all four pilot arms ran on the 3070 Ti**, so keeping the full matrix there
+makes wall-clock comparable across every run rather than splitting the matrix
+across two cards.
+
+`oneshot_prune_seed0` was not restarted and remains on the 3070 Ti at its
+original 12 workers.
+
 ### Arguments that a pre-registered element may be wrong
 
 Per your standing instruction I am logging these and **proceeding under the

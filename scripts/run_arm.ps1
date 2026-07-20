@@ -15,6 +15,20 @@ param(
     [int]$Epochs = 0,
     [string]$ResultsDir = "results",
     [string]$RunId = "",
+
+    # Which physical card to train on. Use this rather than overriding the raw
+    # device index: the name match is what decides, so `--set device=cuda:1`
+    # on its own is SILENTLY INEFFECTIVE. It resolves straight back to whatever
+    # require_device_name points at, warns, and runs on the card you were
+    # trying to move off. This parameter sets device, name and VRAM together.
+    [ValidateSet("5060ti", "3070ti")]
+    [string]$Gpu = "5060ti",
+
+    # Train dataloader workers. Lower this when sharing the machine with
+    # another job; the loader is memory-bandwidth bound, so it competes for
+    # more than just CPU.
+    [int]$Workers = 0,
+
     [switch]$NoResume
 )
 
@@ -45,14 +59,30 @@ if (-not $env:PYTHONWARNINGS) {
 
 if (-not $RunId) { $RunId = "${Arm}_seed${Seed}" }
 
+# Under CUDA_DEVICE_ORDER=PCI_BUS_ID the 5060 Ti is index 0 and the 3070 Ti is
+# index 1. The name assertion is what actually decides, so the index here is a
+# consistency check rather than the selector.
+$gpuSpec = @{
+    "5060ti" = @{ Device = "cuda:0"; Name = "RTX 5060 Ti"; MinVram = 15.0 }
+    "3070ti" = @{ Device = "cuda:1"; Name = "RTX 3070 Ti"; MinVram = 7.0 }
+}[$Gpu]
+
 $argsList = @(
     "src\train.py", "configs\$Arm.yaml",
     "--set", "seed=$Seed",
     "--set", "run_id=$RunId",
-    "--set", "logging.results_dir=$ResultsDir"
+    "--set", "logging.results_dir=$ResultsDir",
+    "--set", "device=$($gpuSpec.Device)",
+    "--set", "require_device_name=$($gpuSpec.Name)",
+    "--set", "require_min_vram_gb=$($gpuSpec.MinVram)"
 )
 if ($Epochs -gt 0) { $argsList += @("--set", "train.epochs=$Epochs") }
+if ($Workers -gt 0) {
+    $argsList += @("--set", "data.num_workers=$Workers")
+}
 if ($NoResume) { $argsList += "--no-resume" }
+
+Write-Host "target GPU: $Gpu ($($gpuSpec.Name))" -ForegroundColor DarkGray
 
 Write-Host "=== $RunId ===" -ForegroundColor Cyan
 $started = Get-Date
