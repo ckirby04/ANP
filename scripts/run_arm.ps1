@@ -18,7 +18,10 @@ param(
     [switch]$NoResume
 )
 
-$ErrorActionPreference = "Stop"
+# Deliberately Continue, not Stop. PowerShell wraps any stderr output from a
+# native executable in a NativeCommandError, and under Stop that aborts the run
+# on nothing more than a Python UserWarning. Success is judged by $LASTEXITCODE.
+$ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
@@ -27,6 +30,12 @@ Set-Location $repo
 $env:nnUNet_raw = "G:\BraTS-MEN\nnUNet\nnUNet_raw"
 $env:nnUNet_preprocessed = "G:\BraTS-MEN\nnUNet\nnUNet_preprocessed"
 $env:nnUNet_results = "G:\BraTS-MEN\nnUNet\nnUNet_results"
+
+# fft_conv_pytorch, pulled in by GaussianBlurTransform, emits a deprecation
+# UserWarning on every worker spawn. It is benign and it floods the log.
+if (-not $env:PYTHONWARNINGS) {
+    $env:PYTHONWARNINGS = "ignore::UserWarning:fft_conv_pytorch.fft_conv"
+}
 
 if (-not $RunId) { $RunId = "${Arm}_seed${Seed}" }
 
