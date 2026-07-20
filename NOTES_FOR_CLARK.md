@@ -156,6 +156,44 @@ foreground-oversampled and a background-dominated batch decreases with depth:
 Flagging only because if the pattern persists in the pilot it bears on the
 third-explanation-of-a-null question.
 
+### Arguments that a pre-registered element may be wrong
+
+Per your standing instruction I am logging these and **proceeding under the
+existing rules unchanged**. Nothing in `docs/preregistration.md` was modified.
+Both surfaced while writing tests for the gate arithmetic, which is exactly
+when you would want them to.
+
+**1. The "non-monotonicity" signature may be close to unattainable in the
+density view.** The pre-registration names a mid-depth bulge, stages 2-3 above
+their ERK allocation, as the discriminating departure, and says ERK is monotone
+decreasing in depth. Both true. But ERK already pins stages 0 and 1 at density
+1.000. For the stage-density sequence to become non-monotone, some deeper stage
+must exceed a shallower one, which means exceeding 1.0 where the shallow stages
+are already saturated. A trajectory can therefore be a large, genuine,
+task-specific departure from ERK at stages 2-3 and still be monotone decreasing
+overall.
+
+My test `test_mid_depth_bulge_passes_gate_b` constructs exactly such a case: it
+clears both Gate B conditions and is still monotone. So **monotonicity is a
+sufficient but not necessary signature**, and treating a monotone result as
+"therefore ERK-like" would be a mistake. Gate B's actual conditions, per-stage
+departure plus the budget clause, do the real work and are unaffected. I would
+suggest demoting monotonicity from "the sharpest available departure" to one
+diagnostic among several, but that is your call and I have not touched it.
+`monotone_in_depth` is reported alongside the gates so you can see both.
+
+**2. The 3-point budget clause has less headroom than implied.** The
+pre-registration justifies the budget clause by noting stages 0-2 are 6.1
+percent of parameters, so a departure confined to them should not pass. I
+measured the actual bound. At ERK, stages 0-2 hold 16.0 percent of the live
+budget; driving all of them to fully dense at constant overall density takes
+them to about 20.4 percent. So **the largest possible shallow-only departure is
+roughly 4.4 points, which clears the 3-point threshold.** The clause does
+constrain, but it does not fully exclude the case it was written for. A
+threshold near 5 points would; 3 does not. Frozen, unchanged, recorded here.
+`test_shallow_only_departure_has_bounded_budget_effect` pins the measured bound
+so it cannot drift.
+
 ### What I did NOT do
 
 - **Did not push.** Per instruction. Local commits only.
