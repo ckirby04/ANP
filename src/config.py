@@ -16,7 +16,11 @@ from typing import Any
 
 import yaml
 
-ARMS = ("dense", "static_sparse", "oneshot_prune", "rigl")
+# `rigl` is retained so the voided pilot remains reproducible; its per-layer
+# conservation cannot answer the between-layer question (see the VOID banner in
+# docs/preregistration.md). `sparse_momentum` is the redesigned dynamic arm,
+# which conserves density globally and lets capacity migrate between layers.
+ARMS = ("dense", "static_sparse", "oneshot_prune", "rigl", "sparse_momentum")
 
 
 @dataclass
@@ -69,6 +73,13 @@ class SparsityConfig:
     drop_decay_end_frac: float = 0.75
     # oneshot_prune: fraction of total training at which the prune happens.
     prune_at_frac: float = 0.5
+    # sparse_momentum (global redistribution): per-layer density floor, so no
+    # layer can be pruned to the point where it stops passing a signal. 0.05
+    # leaves substantial migration room (ERK's lowest stage is 0.24, uniform is
+    # 0.30) while keeping every layer functional. Config-exposed for sweeping;
+    # whether any layer sits AT the floor is reported, since a binding floor
+    # clips the migration signal.
+    min_density_floor: float = 0.05
     # Regrowth-informativeness diagnostic, run at this many evenly spaced points.
     n_informativeness_probes: int = 4
 

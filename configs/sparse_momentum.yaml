@@ -1,0 +1,41 @@
+# Arm: sparse_momentum (global redistribution, redesigned dynamic arm)
+arm: sparse_momentum
+seed: 0
+device: cuda:0
+
+data:
+  preprocessed_dir: G:\BraTS-MEN\nnUNet\nnUNet_preprocessed\Dataset002_BraTS_MEN
+  raw_dir: G:\BraTS-MEN\nnUNet\nnUNet_raw\Dataset002_BraTS_MEN
+  configuration: 3d_fullres
+  fold: 0
+  oversample_foreground: 0.33
+  num_workers: 4
+  limit_cases: 0
+
+train:
+  epochs: 100
+  iters_per_epoch: 250
+  batch_size: 0      # 0 takes the planned batch size (2)
+  initial_lr: 0.01
+  weight_decay: 0.00003
+  momentum: 0.99
+  nesterov: true
+  grad_clip: 12.0
+  amp: true
+  deep_supervision: true
+
+sparsity:
+  density: 0.30
+  include_stem: false
+  update_interval: 100
+  initial_drop_fraction: 0.3
+  drop_decay_end_frac: 0.75
+  prune_at_frac: 0.5
+  min_density_floor: 0.05
+  n_informativeness_probes: 4
+
+logging:
+  results_dir: results
+  trajectory_every_n_steps: 250
+  checkpoint_every_n_steps: 1000
+  log_every_n_steps: 50

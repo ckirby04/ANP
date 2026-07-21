@@ -25,6 +25,7 @@ from models.network import sparsifiable_encoder_convs, stage_of
 
 from .erk import erk_densities
 from .masking import MaskedLayers
+from .redistribute import sparse_momentum_update
 from .rigl import cosine_drop_fraction, regrowth_scores, rigl_update, topk_overlap
 
 TRAJECTORY_FIELDS = (
@@ -327,10 +328,61 @@ class RiglController(SparsityController):
             self.log_trajectory(step)
 
 
+class SparseMomentumController(SparsityController):
+    """Global sparse redistribution: density conserved globally, not per layer.
+
+    The redesigned dynamic arm. Unlike RigL, per-layer density is free to move,
+    so capacity can migrate between layers, which is the mechanism the
+    scientific question requires. See src/sparsity/redistribute.py.
+    """
+
+    arm = "sparse_momentum"
+
+    def initialize_masks(self) -> None:
+        # Start uniform at the target density, as RigL did, so the initial
+        # allocation is not itself a prior. Global total = target * n_weights.
+        gen = torch.Generator(device="cpu").manual_seed(self.cfg.seed)
+        densities = self.target_densities()
+        for name, mask in self.masked.masks.items():
+            n = mask.numel()
+            k = int(round(densities[name] * n))
+            flat = torch.zeros(n, dtype=torch.bool)
+            if k:
+                flat[torch.randperm(n, generator=gen)[:k]] = True
+            self.masked.masks[name] = flat.view_as(mask).to(mask.device)
+        self.masked.apply()
+
+    def prune_rate_at(self, step: int) -> float:
+        s = self.cfg.sparsity
+        return cosine_drop_fraction(step, s.initial_drop_fraction,
+                                    self.cfg.total_steps, s.drop_decay_end_frac)
+
+    def before_optimizer_step(self) -> None:
+        # Do NOT mask gradients: the momentum buffer must accumulate a dense
+        # signal at dead positions for the redistribution and regrowth steps.
+        pass
+
+    def after_optimizer_step(self, step: int, trainer) -> None:
+        interval = self.cfg.sparsity.update_interval
+        if step > 0 and step % interval == 0:
+            rate = self.prune_rate_at(step)
+            if rate > 0:
+                self._last_stats = sparse_momentum_update(
+                    self.masked, trainer.optimizer, rate,
+                    self.cfg.sparsity.min_density_floor)
+        self.masked.apply()
+        self._epoch = trainer.epoch
+        self.maybe_probe_informativeness(step, trainer)
+        every = self.cfg.logging.trajectory_every_n_steps
+        if every and step % every == 0:
+            self.log_trajectory(step)
+
+
 _CONTROLLERS = {
     "static_sparse": StaticSparseController,
     "oneshot_prune": OneShotPruneController,
     "rigl": RiglController,
+    "sparse_momentum": SparseMomentumController,
 }
 
 
