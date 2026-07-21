@@ -4,6 +4,53 @@ Newest entry at the top.
 
 ---
 
+## 2026-07-21 — Pilot VOID, mechanism redesign
+
+**The pilot of 2026-07-19/20 is void as a test of the hypothesis.** Full reason
+in the VOID banner at the top of `docs/preregistration.md`. Short form:
+
+- The spec's per-layer conservation rule ("number pruned == number regrown, per
+  layer") makes each layer's density invariant by construction, so the
+  layer-wise density trajectory — the primary readout — is flat at 0.30 for
+  every sparse arm. Provable from the spec alone, no data needed.
+- **Gate A's density condition was structurally unsatisfiable.** Max deviation
+  on `rigl_seed0` was 0.0000, and could not have been anything else.
+- **Gate B's True was vacuous.** The 9.852-point deep-vs-ERK gap is the fixed
+  uniform-0.30-to-ERK distance, present at step 0, unchanged by training. It
+  reflects no reallocation.
+- Standard RigL rewires only within layers by design, so the method was also
+  wrong for a between-layer question.
+
+Restating the gates for a redesigned mechanism is not post-hoc tuning: no
+answer to the original question was obtainable under the old spec, so there is
+nothing to tune toward. The old gates, thresholds, predictions and outcome
+table are preserved in place, marked VOID.
+
+**Two things survive the void, recorded as observations only:**
+
+1. **Regrowth-informativeness top-k overlap falls monotonically with depth**,
+   ~0.75 at stage 0 to ~0.28 at stage 5 (numbers in the step-2 gate report and
+   `results/rigl_seed0/regrowth_informativeness.csv`). The regrowth signal is
+   task-dependent in the deep layers, not batch noise. This retires the
+   "task-independent regrowth signal" candidate explanation of a null before it
+   was ever needed.
+
+2. **`rigl_seed0` had the lowest validation loss of the four arms**, -0.8491 vs
+   dense -0.8292, static_sparse -0.8126, oneshot_prune -0.8296. n=1, this is
+   loss and not Dice, and RigL only rewired within layers. An observation, not
+   a finding, and not evidence for the hypothesis (which the run could not
+   test).
+
+Both errors originate in the original kickoff spec, not the implementation. The
+masking code faithfully enforced per-layer conservation and has a test
+asserting it; that test is exactly what should have been a per-layer-density-CAN
+-change test instead. The redesign fixes that.
+
+Redesign work (global conservation, restated gates) follows in subsequent
+commits. No training will run until the new gates are approved.
+
+---
+
 ## Session 1 — overnight autonomous run
 
 ### Status

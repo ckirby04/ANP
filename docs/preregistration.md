@@ -1,11 +1,66 @@
 # Pre-registration
 
+> ## VOID — 2026-07-21
+>
+> **The pilot of 2026-07-19/20 is VOID as a test of the hypothesis, and every
+> gate, threshold, prediction, and outcome-table cell below is void with it.**
+> The content is preserved unchanged, not deleted: the record of the error is
+> part of the result. A redesigned mechanism and restated gates follow in
+> `preregistration_v2.md` (pending approval).
+>
+> **Reason the pilot cannot test the hypothesis.** The kickoff spec required
+> "number pruned == number regrown, **per layer**". Equal prune and regrow
+> counts per layer make each layer's density invariant across every update, so
+> the layer-wise density trajectory — the quantity the whole experiment was
+> built to measure — is flat at 0.30 by construction. This is provable from the
+> spec alone, with no data.
+>
+> Compounding it, standard RigL (Evci et al. 2020) holds per-layer sparsity
+> fixed at initialization and rewires only within layers, so the chosen method
+> could not move capacity between layers even in principle. The mechanism was
+> wrong for the question.
+>
+> **Consequences for the recorded gates:**
+>
+> - **Gate A's density condition was structurally unsatisfiable.** No layer's
+>   density can depart from its 0.30 initialization, so the "more than 0.05"
+>   condition can never be met by any of the sparse arms. Measured max
+>   deviation on `rigl_seed0`: 0.0000.
+> - **Gate B evaluated True, but vacuously.** The 9.852-point deep-vs-ERK
+>   budget figure is the fixed distance between the uniform-0.30 initialization
+>   and the ERK allocation. It is present at step 0 and never changes; it
+>   reflects no reallocation. A "pass" here means only that uniform is not ERK.
+>
+> **Restating the gates for the redesigned mechanism is NOT post-hoc tuning.**
+> No answer to the original question was obtainable under the old spec, for any
+> data, so there is no result being tuned toward. The old gates are void
+> because the apparatus could not test them, not because the numbers came out
+> wrong.
+>
+> **What survives the void, recorded as observations (see NOTES_FOR_CLARK.md):**
+>
+> - Regrowth-informativeness top-k overlap falls monotonically with depth
+>   (~0.75 at stage 0 to ~0.28 at stage 5). The regrowth signal is
+>   task-dependent in deep layers. This retires the "task-independent regrowth
+>   signal" explanation of a null before it was needed.
+> - `rigl_seed0` had the lowest validation loss of the four arms (-0.8491 vs
+>   dense -0.8292). n=1, loss not Dice, within-layer rewiring only. An
+>   observation, not a finding.
+>
+> Both errors originate in the original spec, not the implementation, which
+> faithfully enforced per-layer conservation and has a test asserting it.
+
+---
+
 Committed before the pilot run. The point of this document is that a flat or
 null result is a real result, rather than something reinterpreted after seeing
 the plot.
 
 Nothing in here may be edited after the pilot begins. Revisions go in a dated
 amendment section at the bottom, with the reason.
+
+**All content below this line is VOID as of 2026-07-21 (see banner above) and
+is preserved for the record only.**
 
 ## Pilot design
 
