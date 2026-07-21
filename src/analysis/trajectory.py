@@ -155,6 +155,44 @@ def _shapes_from_names(names: list[str]) -> dict[str, tuple[int, ...]]:
     return shapes
 
 
+def erk_ray_decomposition(final_shares: dict[int, float],
+                          init_shares: dict[int, float],
+                          erk_shares: dict[int, float]) -> dict[str, float]:
+    """Decompose the budget-share move into ERK-ward and residual components.
+
+    Implements the v2 Gate B geometry. Let v = share(final) - share(init) and
+    u = share(ERK) - share(init), both in the sum-zero tangent space (shares
+    sum to 1, so their differences sum to 0). Then:
+
+      erk_ward = v . uhat            (movement along the ERK direction)
+      residual = || v - erk_ward * uhat ||   (movement ERK does not point to)
+
+    Units are budget-share percentage points (Euclidean). A pure drift toward
+    ERK, of any magnitude, has residual 0 by construction; a task-specific
+    allocation ERK does not point at has a substantial residual. All figures
+    are returned; the pre-registration gates and reports on residual, and also
+    reports erk_ward and the residual ratio raw so partial drift is visible.
+    """
+    stages = sorted(final_shares)
+    v = np.array([100 * (final_shares[s] - init_shares[s]) for s in stages])
+    u = np.array([100 * (erk_shares[s] - init_shares[s]) for s in stages])
+    u_norm = float(np.linalg.norm(u))
+    if u_norm < 1e-12:
+        raise ValueError("ERK coincides with init; ERK direction undefined")
+    uhat = u / u_norm
+    erk_ward = float(v @ uhat)
+    residual_vec = v - erk_ward * uhat
+    residual = float(np.linalg.norm(residual_vec))
+    v_norm = float(np.linalg.norm(v))
+    return {
+        "residual": residual,
+        "erk_ward": erk_ward,
+        "residual_ratio": (residual / v_norm) if v_norm > 1e-12 else 0.0,
+        "move_norm": v_norm,
+        "erk_axis_norm": u_norm,
+    }
+
+
 @dataclass
 class GateReport:
     """Factual evaluation of the pre-registered gate conditions.

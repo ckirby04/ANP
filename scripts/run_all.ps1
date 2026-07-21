@@ -14,7 +14,12 @@
 param(
     [int[]]$Seeds = @(0),
     [int]$Epochs = 100,
-    [string[]]$Arms = @("dense", "rigl", "static_sparse", "oneshot_prune"),
+    # Pilot arm set (revised 2026-07-21). dense first so a crash surfaces on the
+    # simplest arm; the two sparse_momentum inits are the arms the redesign is
+    # about. oneshot_prune is dropped from the pilot (Dice comparison, not
+    # allocation) and returns for the full matrix.
+    [string[]]$Arms = @("dense", "sparse_momentum_uniform_init",
+                        "sparse_momentum_erk_init", "static_sparse"),
     [string]$ResultsDir = "results",
 
     # All four pilot arms ran on the 3070 Ti. Keep a matrix on ONE card so

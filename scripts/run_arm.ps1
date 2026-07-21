@@ -7,8 +7,10 @@
 # to start over.
 
 param(
+    # Config basename under configs\ (without .yaml). Validated by file
+    # existence rather than a fixed set, so new arms/inits work without editing
+    # this script. E.g. dense, static_sparse, sparse_momentum_uniform_init.
     [Parameter(Mandatory = $true)]
-    [ValidateSet("dense", "static_sparse", "oneshot_prune", "rigl")]
     [string]$Arm,
 
     [int]$Seed = 0,
@@ -57,6 +59,11 @@ if (-not $env:PYTHONWARNINGS) {
     $env:PYTHONWARNINGS = "ignore::UserWarning:fft_conv_pytorch.fft_conv"
 }
 
+$configPath = Join-Path $repo "configs\$Arm.yaml"
+if (-not (Test-Path $configPath)) {
+    $available = (Get-ChildItem "$repo\configs\*.yaml" | ForEach-Object { $_.BaseName }) -join ", "
+    throw "no config configs\$Arm.yaml. Available: $available"
+}
 if (-not $RunId) { $RunId = "${Arm}_seed${Seed}" }
 
 # Under CUDA_DEVICE_ORDER=PCI_BUS_ID the 5060 Ti is index 0 and the 3070 Ti is

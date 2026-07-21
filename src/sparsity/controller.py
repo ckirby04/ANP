@@ -339,13 +339,24 @@ class SparseMomentumController(SparsityController):
     arm = "sparse_momentum"
 
     def initialize_masks(self) -> None:
-        # Start uniform at the target density, as RigL did, so the initial
-        # allocation is not itself a prior. Global total = target * n_weights.
+        """Draw the initial mask per layer at uniform or ERK density.
+
+        Both modes hit the same global 0.30 total; they differ only in where
+        the budget sits at step 0. Running both and confirming they converge to
+        the same non-ERK allocation removes the objection that the
+        initialization determined the destination.
+        """
+        if self.cfg.sparsity.init_mode == "erk":
+            shapes = {name: tuple(m.shape) for name, m in self.masked.masks.items()}
+            densities = erk_densities(shapes, self.cfg.sparsity.density)
+        else:
+            densities = self.target_densities()
+
         gen = torch.Generator(device="cpu").manual_seed(self.cfg.seed)
-        densities = self.target_densities()
         for name, mask in self.masked.masks.items():
             n = mask.numel()
             k = int(round(densities[name] * n))
+            k = max(0, min(n, k))
             flat = torch.zeros(n, dtype=torch.bool)
             if k:
                 flat[torch.randperm(n, generator=gen)[:k]] = True

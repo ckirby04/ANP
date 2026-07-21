@@ -49,6 +49,25 @@ asserting it; that test is exactly what should have been a per-layer-density-CAN
 Redesign work (global conservation, restated gates) follows in subsequent
 commits. No training will run until the new gates are approved.
 
+**Gate B revised to the ERK-ray residual (2026-07-21).** The magnitude-only B1
+was passed by moving straight toward ERK and stopping short. Fixed per your
+geometric formulation: B1 now gates on the residual, the component of the
+budget-share move orthogonal to the init->ERK direction. Verified numerically:
+every replication case (stay at init; drift fully, halfway, or partway-and-stop
+toward ERK) scores residual exactly 0.00, while task-specific allocations score
+3.9 to 54. Max attainable residual over the reachable budget polytope, derived
+by LP not assumed, is **64.39 points**; the init->ERK axis is 12.37 points.
+Proposed B1 threshold: **5 points** (~40% of the ERK axis, ~13x below the max).
+ERK-ward component and residual ratio are reported raw. Full derivation and
+calibration table in docs/preregistration_v2.md.
+
+**Pilot arm set revised:** dense, static_sparse, sparse_momentum_uniform_init,
+sparse_momentum_erk_init. oneshot_prune dropped from the pilot (Dice, not
+allocation). The two-init design is the robustness test: if both converge to
+the same non-ERK allocation, the result does not depend on the starting point.
+
+Gates v2 still PENDING your approval. Nothing has run.
+
 ---
 
 ## Session 1 — overnight autonomous run

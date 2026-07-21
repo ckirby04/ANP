@@ -16,13 +16,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from analysis.trajectory import (  # noqa: E402
+    churn,
     deep_shallow_split,
+    erk_ray_decomposition,
     erk_reference,
     evaluate_gates,
     kendall_tau,
     stage_budget_shares,
     stage_densities,
-    churn,
 )
 from sparsity.erk import encoder_conv_shapes, erk_densities  # noqa: E402
 
@@ -249,6 +250,49 @@ def test_monotonicity_detects_non_monotone_allocation():
         if n.startswith("stage3"):
             d[n] = 0.9
     assert not evaluate_gates(make_rows(renormalize(d))).monotone_in_depth
+
+
+# --- v2 Gate B geometry: ERK-ray decomposition ----------------------------
+
+# Per-stage budget shares (fractions summing to 1) for the real architecture.
+_INIT = {0: 0.00197, 1: 0.01183, 2: 0.04734, 3: 0.18935, 4: 0.35503, 5: 0.39448}
+_ERK = {0: 0.00657, 1: 0.03945, 2: 0.11364, 3: 0.22289, 4: 0.30092, 5: 0.31653}
+
+
+def test_pure_erk_drift_has_zero_residual():
+    """The replication case Gate B must exclude, at any magnitude."""
+    for frac in (0.25, 0.5, 1.0, 0.89):
+        final = {s: _INIT[s] + frac * (_ERK[s] - _INIT[s]) for s in _INIT}
+        d = erk_ray_decomposition(final, _INIT, _ERK)
+        assert d["residual"] == pytest.approx(0.0, abs=1e-6)
+        assert d["erk_ward"] > 0 if frac > 0 else True
+
+
+def test_staying_at_init_has_zero_everything():
+    d = erk_ray_decomposition(dict(_INIT), _INIT, _ERK)
+    assert d["residual"] == pytest.approx(0.0, abs=1e-9)
+    assert d["move_norm"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_task_specific_allocation_has_substantial_residual():
+    """A move ERK does not point at registers a nonzero residual."""
+    # Enrich stage 2 well beyond ERK, keep shallow-most sparse.
+    final = {0: 0.002, 1: 0.012, 2: 0.14, 3: 0.30, 4: 0.30, 5: 0.246}
+    tot = sum(final.values())
+    final = {s: v / tot for s, v in final.items()}
+    d = erk_ray_decomposition(final, _INIT, _ERK)
+    assert d["residual"] > 5.0
+    assert 0.0 < d["residual_ratio"] <= 1.0
+
+
+def test_residual_is_orthogonal_to_erk_direction():
+    final = {0: 0.01, 1: 0.02, 2: 0.10, 3: 0.25, 4: 0.30, 5: 0.32}
+    tot = sum(final.values())
+    final = {s: v / tot for s, v in final.items()}
+    d = erk_ray_decomposition(final, _INIT, _ERK)
+    # residual^2 + erk_ward^2 == move_norm^2 (Pythagoras in the decomposition)
+    assert d["residual"] ** 2 + d["erk_ward"] ** 2 == pytest.approx(
+        d["move_norm"] ** 2, rel=1e-6)
 
 
 def test_report_formats_without_interpreting():

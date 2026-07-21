@@ -20,6 +20,21 @@ lowest-magnitude fraction per layer (floor-protected); redistribute the freed
 budget across layers by mean momentum magnitude; regrow within a layer at the
 highest-momentum dead positions. Floor = 0.05 (config-exposed).
 
+## Pilot arm set (revised 2026-07-21)
+
+Four arms: `dense`, `static_sparse`, `sparse_momentum_uniform_init`,
+`sparse_momentum_erk_init`. `oneshot_prune` is dropped from the pilot — it bears
+on the Dice comparison, not the allocation question — and returns for the full
+matrix.
+
+The two `sparse_momentum` arms are identical except for where the budget sits at
+step 0 (both start at global 0.30). Running both is the strongest test
+available: if uniform-init and ERK-init converge to the same allocation, and it
+is not ERK, the result is robust to initialization, which retires the standing
+objection that the starting point determined the destination. This also
+promotes the ERK-init run from a contingent pass-A/fail-B rescue (v1) to a core
+arm.
+
 ## Fixed reference quantities (this architecture, density 0.30, floor 0.05)
 
 - Global live budget: 4,205,261 of 14,017,536 encoder weights.
@@ -66,32 +81,61 @@ Gate A passes iff A1 and A2.
 ## Proposed Gate B: task-specific, and NOT the ERK prior
 
 Under global redistribution ERK is now a real attractor — "drifts toward ERK"
-is a live outcome, not the fixed offset it was in v1. Gate B must therefore
-reject two nulls at once: the allocation collapsing to ERK (rediscovery), and
-the allocation not really moving (the v1 vacuous-pass failure). Two conditions,
-both required.
+is a live outcome, not the fixed offset it was in v1. The v1-style magnitude
+test (D_ERK(final) large) does not work: it measures distance, not direction,
+so a network that moves 15 points straight toward ERK and stops at 11 still
+sits far from ERK and passes. That is exactly the Evci et al. replication Gate B
+exists to exclude.
 
-**B1 (not ERK).** At the final checkpoint the per-stage budget-share L1 distance
-to ERK, D_ERK(final), exceeds **8 points**.
+**The fix is geometric (Clark's formulation).** Let v = budget_share(final) −
+budget_share(init) and u = budget_share(ERK) − budget_share(init), both in the
+sum-zero tangent space. Decompose v along the ERK direction:
 
-- *Max attainable / triviality.* D_ERK ∈ [0 (exact ERK), ~52 (budget massed
-  opposite to ERK)]; init sits at 26.41. So >8 is attainable. **It is NOT
-  sufficient alone**: staying at uniform init gives 26.41 > 8, which is exactly
-  the v1 vacuous pass. B1 must be paired with B2.
-- *Raw reported:* per-stage |final − ERK| budget share, and the full D_ERK(t)
-  trajectory so the direction of drift is visible.
+  - **ERK-ward component** = v · û
+  - **Residual** = ‖v − (v·û)û‖  (movement ERK does not point at)
 
-**B2 (not uniform either).** At least one stage's final budget share differs
-from its uniform-init budget share by more than **3 points**.
+A pure drift toward ERK, of any magnitude, has residual **exactly 0** by
+construction. A task-specific allocation ERK does not point at has a
+substantial residual. Direction, not magnitude, is what discriminates.
 
-- *Why.* B1 rejects ERK; B2 rejects "far from ERK only because it never moved."
-  Together they require the allocation to settle at a third place — distinct
-  from both the initialization and the prior — which is the task-specific
-  finding. B2 guards the void loophole directly in budget space, as Gate A's
-  A1 does in density space.
+Implemented and tested in `erk_ray_decomposition` (src/analysis/trajectory.py).
+Computed on per-stage budget shares (6-dim), the granularity of the capacity
+claim. Units: budget-share percentage points (Euclidean).
+
+**B1 (moved off the ERK ray).** At the final checkpoint the residual exceeds
+**5 points**.
+
+- *Calibration (why 5).* Every replication case scores residual exactly 0.00:
+  staying at init, drifting fully to ERK, and drifting partway and stopping
+  (e.g. the "moves 15 toward ERK, stops at 11" case → residual 0.00, ERK-ward
+  +11.00). Task-specific allocations score: a mild task move ~3.9, a mid-stage
+  bulge that keeps the shallow layers sparse (unlike ERK) ~8.4, a strong bulge
+  ~10.2, an anti-ERK deep-enrichment ~54. The init→ERK axis length ‖u‖ is 12.37
+  points, so a 5-point residual is ~40% of the entire ERK scale — a substantial
+  off-axis excursion, clearly above frozen-tail settling jitter (the prune rate
+  anneals to 0 by 75%, so the final 25% is frozen), and it cleanly clears a
+  ~3.9 "mild" move without stamping it task-specific.
+- *Max attainable.* Derived, not assumed: the maximum residual over the
+  reachable budget polytope (each stage's share in [floor·paramshare/0.30,
+  paramshare/0.30], summing to 1) is **64.39 points**, at the corner that
+  masses the budget into stage 4. So the 5-point bar is ~13× below the ceiling
+  — attainable with large margin, and not trivially met, since any positive
+  residual already requires movement ERK does not predict.
+- *Raw reported, always:* the residual, the ERK-ward component, the residual
+  ratio (residual / ‖v‖), and the full D_ERK(t) trajectory. The ratio and the
+  trajectory handle the ambiguous middle — a large ERK-ward component with a
+  small residual reads as mostly replication — without a hard rule, as
+  proposed.
+
+**B2 (movement floor).** At least one stage's final budget share differs from
+its uniform-init budget share by more than **3 points**.
+
+- *Why keep it.* B1 already implies real movement (residual > 5 forces ‖v‖ > 5),
+  so B2 is a secondary guard rather than the primary one, retained per Clark's
+  instruction. It states the floor directly in per-stage budget space.
 - *Max attainable.* Stage 5 can drop from 39.45% to floor (~6.6%) = 32.8 pts;
   the shallow block can rise 14.27 pts. The 3-pt bar is ~10× below the ceiling
-  and 0 at init. Attainable, not trivial.
+  and 0 at init.
 - *Raw reported:* per-stage |final − uniform-init| budget share.
 
 Gate B passes iff B1 and B2.

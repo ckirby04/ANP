@@ -80,6 +80,12 @@ class SparsityConfig:
     # whether any layer sits AT the floor is reported, since a binding floor
     # clips the migration signal.
     min_density_floor: float = 0.05
+    # Initial per-layer density distribution for sparse_momentum. "uniform"
+    # starts every layer at the target density; "erk" starts at the ERK
+    # allocation. Both hit the same global 0.30, differing only in where the
+    # budget sits at step 0. Running both and checking they converge to the
+    # same non-ERK allocation is the robustness-to-initialization test.
+    init_mode: str = "uniform"
     # Regrowth-informativeness diagnostic, run at this many evenly spaced points.
     n_informativeness_probes: int = 4
 
@@ -120,6 +126,9 @@ class Config:
                 f"{self.sparsity.initial_drop_fraction}")
         if self.sparsity.update_interval < 1:
             raise ValueError("update_interval must be >= 1")
+        if self.sparsity.init_mode not in ("uniform", "erk"):
+            raise ValueError(
+                f"init_mode must be 'uniform' or 'erk', got {self.sparsity.init_mode!r}")
         if not self.run_id:
             self.run_id = f"{self.arm}_seed{self.seed}"
 

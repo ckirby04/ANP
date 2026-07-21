@@ -196,6 +196,42 @@ def test_allocate_zero_contrib_still_places_by_capacity():
     assert sum(alloc) == 50
 
 
+def test_erk_and_uniform_init_start_at_same_global_density():
+    """Both init modes hit global 0.30; only the per-layer split differs.
+
+    This is what makes the two-init robustness test valid: the arms are
+    identical except for where the budget sits at step 0.
+    """
+    import sys as _sys
+    from pathlib import Path as _P
+    _sys.path.insert(0, str(_P(__file__).resolve().parents[1] / "src"))
+    from config import Config
+    from models.network import build_network, load_plan
+    from sparsity.controller import make_controller
+    import tempfile
+
+    P = r"G:\BraTS-MEN\nnUNet\nnUNet_preprocessed\Dataset002_BraTS_MEN"
+    if not _P(P).exists():
+        pytest.skip("dataset plans not present")
+    plan = load_plan(P)
+
+    shares = {}
+    for mode in ("uniform", "erk"):
+        cfg = Config(arm="sparse_momentum", seed=0)
+        cfg.sparsity.init_mode = mode
+        net = build_network(plan, deep_supervision=False)
+        ctrl = make_controller(cfg)
+        ctrl.attach(net, _P(tempfile.mkdtemp()), cfg)
+        # Same global density for both.
+        assert ctrl.masked.overall_density() == pytest.approx(0.30, abs=2e-3)
+        shares[mode] = {n: ctrl.masked.density(n) for n in ctrl.masked.masks}
+
+    # ERK init must actually differ per-layer from uniform: stage 0 dense-ish,
+    # deep stages below 0.30.
+    assert shares["erk"]["stage0.conv1"] > shares["uniform"]["stage0.conv1"] + 0.3
+    assert shares["erk"]["stage5.conv0"] < shares["uniform"]["stage5.conv0"]
+
+
 def test_update_is_noop_before_momentum_exists():
     torch.manual_seed(0)
     layers = {"stage1.conv0": nn.Conv3d(4, 4, 3, bias=False)}
