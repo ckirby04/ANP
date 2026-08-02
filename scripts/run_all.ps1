@@ -22,11 +22,13 @@ param(
                         "sparse_momentum_erk_init", "static_sparse"),
     [string]$ResultsDir = "results",
 
-    # All four pilot arms ran on the 3070 Ti. Keep a matrix on ONE card so
-    # wall-clock stays comparable across arms, and pick the card the machine's
-    # other tenants are not using.
-    [ValidateSet("5060ti", "3070ti")]
-    [string]$Gpu = "5060ti",
+    # Name of the card to run the whole matrix on, matched as a case-insensitive
+    # substring of the CUDA device name. Keep a matrix on ONE card so wall-clock
+    # stays comparable across arms. Empty means no card requirement, and
+    # -DeviceIndex selects instead.
+    [string]$Gpu = "",
+    [double]$MinVramGb = 0,
+    [int]$DeviceIndex = 0,
 
     [int]$Workers = 0,
     [switch]$NoResume
@@ -50,7 +52,8 @@ foreach ($seed in $Seeds) {
             Write-Host "=== $runId (attempt $attempt) ===" -ForegroundColor Cyan
 
             $p = @{ Arm = $arm; Seed = $seed; Epochs = $Epochs
-                    ResultsDir = $ResultsDir; Gpu = $Gpu }
+                    ResultsDir = $ResultsDir; Gpu = $Gpu
+                    MinVramGb = $MinVramGb; DeviceIndex = $DeviceIndex }
             if ($Workers -gt 0) { $p["Workers"] = $Workers }
             # Only attempt 1 honours -NoResume; a retry always resumes so it
             # picks up from the last checkpoint rather than restarting.

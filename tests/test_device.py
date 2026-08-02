@@ -111,11 +111,26 @@ def test_cpu_device_with_a_gpu_requirement_raises():
         resolve_device("cpu", "RTX 5060 Ti", 15.0)
 
 
-def test_config_defaults_require_the_sixteen_gig_card():
+def test_config_defaults_require_no_particular_card():
+    """No specific GPU is a default requirement.
+
+    Shipping one machine's card as the default made every clone fail at startup
+    on hardware that was never the point. The safety property being preserved is
+    "fail if the card is not the one that was named", not "fail on any card that
+    is not mine": naming a card is opt-in, and scripts/run_arm.ps1 -Gpu is how
+    it is named.
+    """
     from config import Config
     cfg = Config()
-    assert cfg.require_device_name == "RTX 5060 Ti"
-    assert cfg.require_min_vram_gb == 15.0
+    assert cfg.require_device_name == ""
+    assert cfg.require_min_vram_gb == 0.0
+
+
+@cuda_only
+def test_named_card_that_is_absent_still_fails_loudly():
+    """The wrong-card assertion must survive the default becoming permissive."""
+    with pytest.raises(RuntimeError, match="no CUDA device matching"):
+        resolve_device("cuda:0", "GTX 280 Ultra Nonexistent", 0.0)
 
 
 def test_no_bare_cuda_device_strings_in_source():

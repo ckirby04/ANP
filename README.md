@@ -320,6 +320,15 @@ a whole is reproducible in distribution, not exactly. Determinism was
 deliberately not enabled mid-pilot, because it would have made later arms
 non-comparable with earlier ones.
 
+**No GPU is asserted by default, which is a deliberate weakening.** After the
+wrong-card incident below, device selection was pinned by name with a startup
+assertion — but the required name defaulted to one specific card, so a clone
+failed at startup on any other hardware. The default is now empty. The
+assertion is fully preserved *whenever a name is given*: naming a card still
+fails loudly if the run would land anywhere else. What is lost is that a run
+launched with no card named will no longer catch a wrong-card selection.
+`scripts/run_arm.ps1 -Gpu 'RTX 5060 Ti'` is how a card is named.
+
 **All four v1 arms ran on an 8 GB card, not the intended 16 GB card.** CUDA's
 default `FASTEST_FIRST` ordering disagrees with `nvidia-smi`, so the configured
 `cuda:0` resolved to the smaller device. The runs fit and are valid, but did not

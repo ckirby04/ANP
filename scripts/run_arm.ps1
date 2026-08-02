@@ -18,13 +18,24 @@ param(
     [string]$ResultsDir = "results",
     [string]$RunId = "",
 
-    # Which physical card to train on. Use this rather than overriding the raw
-    # device index: the name match is what decides, so `--set device=cuda:1`
-    # on its own is SILENTLY INEFFECTIVE. It resolves straight back to whatever
-    # require_device_name points at, warns, and runs on the card you were
-    # trying to move off. This parameter sets device, name and VRAM together.
-    [ValidateSet("5060ti", "3070ti")]
-    [string]$Gpu = "5060ti",
+    # Name of the physical card to train on, matched as a case-insensitive
+    # substring of the CUDA device name, e.g. "RTX 5060 Ti" or just "5060".
+    #
+    # Use this rather than overriding the raw device index. When a name is set
+    # the name match is what decides, so `--set device=cuda:1` on its own is
+    # SILENTLY INEFFECTIVE: it resolves straight back to whatever
+    # require_device_name points at, warns, and runs on the card you were trying
+    # to move off.
+    #
+    # Empty means no card requirement, and selection falls back to -DeviceIndex.
+    [string]$Gpu = "",
+
+    # Minimum VRAM in GiB to assert on the selected card. 0 means no assertion.
+    [double]$MinVramGb = 0,
+
+    # Fallback CUDA index, used when -Gpu is empty. Under
+    # CUDA_DEVICE_ORDER=PCI_BUS_ID this is nvidia-smi's ordering.
+    [int]$DeviceIndex = 0,
 
     # Train dataloader workers. Lower this when sharing the machine with
     # another job; the loader is memory-bandwidth bound, so it competes for
@@ -85,22 +96,17 @@ if (-not (Test-Path $configPath)) {
 }
 if (-not $RunId) { $RunId = "${Arm}_seed${Seed}" }
 
-# Under CUDA_DEVICE_ORDER=PCI_BUS_ID the 5060 Ti is index 0 and the 3070 Ti is
-# index 1. The name assertion is what actually decides, so the index here is a
-# consistency check rather than the selector.
-$gpuSpec = @{
-    "5060ti" = @{ Device = "cuda:0"; Name = "RTX 5060 Ti"; MinVram = 15.0 }
-    "3070ti" = @{ Device = "cuda:1"; Name = "RTX 3070 Ti"; MinVram = 7.0 }
-}[$Gpu]
-
+# The name assertion is what decides when -Gpu is given; the index is then only
+# a fallback and a consistency check. With no -Gpu there is no card requirement
+# and -DeviceIndex selects, which is the same behaviour as plain PyTorch.
 $argsList = @(
     "src\train.py", "configs\$Arm.yaml",
     "--set", "seed=$Seed",
     "--set", "run_id=$RunId",
     "--set", "logging.results_dir=$ResultsDir",
-    "--set", "device=$($gpuSpec.Device)",
-    "--set", "require_device_name=$($gpuSpec.Name)",
-    "--set", "require_min_vram_gb=$($gpuSpec.MinVram)"
+    "--set", "device=cuda:$DeviceIndex",
+    "--set", "require_device_name=$Gpu",
+    "--set", "require_min_vram_gb=$MinVramGb"
 )
 if ($Epochs -gt 0) { $argsList += @("--set", "train.epochs=$Epochs") }
 if ($Workers -gt 0) {
