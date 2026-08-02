@@ -4,9 +4,10 @@ Build step 1. Findings recorded before any data loader was written.
 
 ## Location and layout
 
-`G:\BraTS-MEN` is not a raw dataset directory. It is a completed prior project
-(JANNUS v1.4 transfer experiment, hand-off dated 2026-05-04) with the imaging
-data inside it. Two usable views of the same 1000 cases:
+The dataset root used here is not a raw BraTS download: the imaging data had
+already been converted to nnU-Net layout by prior work. Its location is
+configured by the `ANP_DATA_ROOT` environment variable, not by any path recorded
+in this repository. Two usable views of the same 1000 cases sit side by side:
 
 **`extracted\BraTS-MEN-Train\`** — 1000 case directories named
 `BraTS-MEN-XXXXX-000`, each with `-t1n`, `-t1c`, `-t2f`, `-t2w`, `-seg` as
