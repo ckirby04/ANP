@@ -37,7 +37,8 @@
 > because the apparatus could not test them, not because the numbers came out
 > wrong.
 >
-> **What survives the void, recorded as observations (see NOTES_FOR_CLARK.md):**
+> **What survives the void, recorded as observations (see
+> [`protocol_history.md`](protocol_history.md)):**
 >
 > - Regrowth-informativeness top-k overlap falls monotonically with depth
 >   (~0.75 at stage 0 to ~0.28 at stage 5). The regrowth signal is

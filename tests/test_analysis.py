@@ -213,7 +213,7 @@ def test_shallow_only_departure_has_bounded_budget_effect():
     dense, so the largest departure available to the shallow stages alone is
     driving stage 2 from its ERK 0.720 up to 1.0. That is a real but small
     budget shift. This test records the size of it rather than asserting a
-    convenient outcome: see NOTES_FOR_CLARK.md, which argues the 3-point
+    convenient outcome: see docs/protocol_history.md, which argues the 3-point
     threshold has less headroom against a shallow-only departure than the
     pre-registration implies. The threshold is frozen and is not changed here.
     """
@@ -242,7 +242,7 @@ def test_monotonicity_detects_non_monotone_allocation():
 
     Note this is hard to achieve against ERK, which already pins stages 0-1 at
     1.0; a mid-depth bulge relative to ERK can still be monotone overall. The
-    argument is recorded in NOTES_FOR_CLARK.md. Here the check is exercised on
+    argument is recorded in docs/protocol_history.md. Here the check is exercised on
     a uniform baseline where it is attainable.
     """
     d = {n: 0.30 for n in SHAPES}
