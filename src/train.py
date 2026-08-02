@@ -16,8 +16,10 @@ import argparse
 import json
 import os
 import random
+import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Set before torch is imported, so it is in place before the CUDA driver
@@ -380,6 +382,75 @@ def build_controller(cfg: Config):
     return make_controller(cfg)
 
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def utc_now() -> str:
+    """Wall clock as ISO 8601 UTC, to the second."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def git_provenance(repo_root: Path = REPO_ROOT) -> dict:
+    """The commit this run starts from, and whether the tree matched it.
+
+    The commit alone is not sufficient. In the v1 pilot, oneshot_prune_seed0
+    started three seconds before a322478 committed the launch script it was
+    started with, so the commit that a reader would infer for it is correct
+    while the working tree was not clean. `dirty` is what puts that in the
+    run's own record instead of leaving it to be reconstructed afterwards; see
+    RUNS.md.
+
+    Every field is None if git is unavailable or this is not a repository. A
+    run must not fail because provenance could not be collected.
+    """
+    def _git(*args):
+        try:
+            done = subprocess.run(("git", "-C", str(repo_root)) + args,
+                                  capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return done.stdout.strip() if done.returncode == 0 else None
+
+    commit = _git("rev-parse", "HEAD")
+    if commit is None:
+        return {"commit": None, "dirty": None, "commit_time": None,
+                "note": "git metadata unavailable at run time"}
+    status = _git("status", "--porcelain")
+    return {
+        "commit": commit,
+        # True means the tree carried uncommitted changes, so `commit` does not
+        # fully describe the code that ran.
+        "dirty": None if status is None else bool(status),
+        "commit_time": _git("log", "-1", "--format=%cI", "HEAD"),
+    }
+
+
+def _prior_invocations(prov_path: Path) -> list:
+    """Carry forward earlier invocations so a resume does not erase them.
+
+    A resumed run may start from a different commit than the one that began it.
+    Overwriting provenance.json would hide that, so each invocation is kept.
+    """
+    if not prov_path.exists():
+        return []
+    try:
+        old = json.loads(prov_path.read_text())
+    except (OSError, ValueError):
+        return []
+    if not isinstance(old, dict) or "started_utc" not in old:
+        return []
+    return list(old.get("previous_invocations", [])) + [{
+        "started_utc": old.get("started_utc"),
+        "finished_utc": old.get("finished_utc"),
+        "git": old.get("git"),
+    }]
+
+
+def _write_provenance(prov_path: Path, provenance: dict) -> None:
+    with open(prov_path, "w") as fh:
+        json.dump(provenance, fh, indent=2)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Train one arm at one seed.")
     ap.add_argument("config", type=Path)
@@ -394,10 +465,18 @@ def main(argv=None):
 
     cfg.save(trainer.run_dir / "config.yaml")
     params = count_parameters(trainer.network)
+    prov_path = trainer.run_dir / "provenance.json"
+    previous_invocations = _prior_invocations(prov_path)
     provenance = {
         "run_id": cfg.run_id,
         "arm": cfg.arm,
         "seed": cfg.seed,
+        # Recorded at run time so the run can be tied to a commit and a wall
+        # clock without reconstructing either from file mtimes afterwards.
+        "git": git_provenance(),
+        "started_utc": utc_now(),
+        "finished_utc": None,
+        "previous_invocations": previous_invocations,
         "config_digest": cfg.digest(),
         "split_digest": trainer.split.digest,
         "n_train_cases": len(trainer.train_ids),
@@ -425,11 +504,15 @@ def main(argv=None):
             "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG", "<unset>"),
         },
     }
-    with open(trainer.run_dir / "provenance.json", "w") as fh:
-        json.dump(provenance, fh, indent=2)
+    _write_provenance(prov_path, provenance)
     print(json.dumps(provenance, indent=2), flush=True)
 
     trainer.fit(resume=not args.no_resume)
+
+    # Only on a clean return. If fit raises, finished_utc stays null, which is
+    # the accurate record: the run did not complete.
+    provenance["finished_utc"] = utc_now()
+    _write_provenance(prov_path, provenance)
 
 
 if __name__ == "__main__":
