@@ -220,6 +220,13 @@ class GateReport:
     gate_b_budget_condition: bool
     gate_b: bool
     monotone_in_depth: bool
+    # These are the v1 gates, which are void. Carried in the report itself so a
+    # consumer reading to_dict() sees it without having read the docs.
+    void: bool = True
+    void_reason: str = (
+        "v1 gates: per-layer density conservation made Gate A unsatisfiable and "
+        "Gate B vacuous. See docs/preregistration.md and docs/protocol_history.md."
+    )
 
     def to_dict(self) -> dict:
         from dataclasses import asdict
@@ -250,7 +257,20 @@ def evaluate_gates(rows: list[dict],
                    budget_threshold_pts: float = 3.0,
                    tau_threshold: float = 0.8,
                    n_ordering_checkpoints: int = 10) -> GateReport:
-    """Evaluate the frozen Gate A and Gate B conditions.
+    """Evaluate the v1 Gate A and Gate B conditions. THESE GATES ARE VOID.
+
+    The v1 pilot is void as a test of the hypothesis. Its specification
+    conserved density per layer, which makes every layer's density invariant, so
+    Gate A's density condition was unsatisfiable by construction and Gate B
+    passed only on the fixed uniform-to-ERK offset. See the VOID banner in
+    docs/preregistration.md and docs/protocol_history.md.
+
+    This function is retained so the voided pilot's numbers stay reproducible,
+    not because its verdicts mean anything. `GateReport.void` is True and
+    `format_report` says so in its output. The v2 gates are stated in
+    docs/preregistration_v2.md and are not implemented here: they are PROPOSED
+    and not in effect, and implementing them before they are frozen would
+    invite exactly the drift the status mechanism exists to prevent.
 
     Thresholds default to the pre-registered values and are parameters only so
     the tests can exercise the logic. Do not change them for a real run.
@@ -318,9 +338,30 @@ def evaluate_gates(rows: list[dict],
     )
 
 
+VOID_BANNER = [
+    "=" * 72,
+    "VOID -- these are the v1 gates and they do not test the hypothesis.",
+    "",
+    "The v1 specification conserved density per layer, which holds every",
+    "layer's density constant for the whole run. Gate A's density condition",
+    "was therefore unsatisfiable by construction, and Gate B passed only on",
+    "the fixed uniform-to-ERK offset, which is present at step 0 and reflects",
+    "no reallocation. The verdicts below are reproducible, not meaningful.",
+    "",
+    "docs/preregistration.md (VOID banner) -- docs/protocol_history.md",
+    "The v2 gates are PROPOSED and NOT IN EFFECT: docs/preregistration_v2.md",
+    "=" * 72,
+]
+
+
 def format_report(report: GateReport) -> str:
-    """Human-readable gate conditions. States facts, draws no conclusions."""
-    lines = [
+    """Human-readable gate conditions. States facts, draws no conclusions.
+
+    Leads with the void banner when the report carries one, so that nobody who
+    runs this on a trajectory CSV reads the verdicts as live findings.
+    """
+    lines = list(VOID_BANNER) + [""] if report.void else []
+    lines += [
         f"final step: {report.final_step}",
         "",
         "stage    density   ERK      dev      budget%   ERK budget%",
@@ -354,4 +395,6 @@ def format_report(report: GateReport) -> str:
         # this function reports them and does not interpret them.
         "Interpretation follows the protocol in docs/preregistration.md.",
     ]
+    if report.void:
+        lines += ["", f"VOID: {report.void_reason}"]
     return "\n".join(lines)

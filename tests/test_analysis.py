@@ -302,3 +302,40 @@ def test_report_formats_without_interpreting():
     # The report must not editorialise.
     for word in ("success", "failure", "confirms", "proves", "interesting"):
         assert word not in text.lower()
+
+
+# --- the v1 gates are void, and must say so wherever they surface ----------
+
+def test_gate_report_carries_the_void_flag():
+    """A consumer reading to_dict() must see the void status without the docs."""
+    report = evaluate_gates(make_rows({n: 0.30 for n in SHAPES}))
+    assert report.void is True
+    assert "unsatisfiable" in report.void_reason
+    assert report.to_dict()["void"] is True
+
+
+def test_formatted_report_leads_with_the_void_banner():
+    """The banner goes first.
+
+    Anyone who clones this repository and runs the analysis on the pilot CSVs
+    gets the v1 verdicts. Those verdicts are reproducible but meaningless, and
+    Gate B in particular reads True. The banner must be the first thing on
+    screen, not a footnote after a table of numbers that looks like a result.
+    """
+    from analysis.trajectory import format_report
+    text = format_report(evaluate_gates(make_rows({n: 0.30 for n in SHAPES})))
+    assert text.lstrip().startswith("=")
+    head, _, _ = text.partition("final step:")
+    assert "VOID" in head
+    assert "unsatisfiable by construction" in head
+    assert "docs/protocol_history.md" in head
+    # And it is restated at the end, so a truncated read still catches it.
+    assert text.rstrip().endswith(
+        "See docs/preregistration.md and docs/protocol_history.md.")
+
+
+def test_void_banner_names_v2_as_proposed_not_in_effect():
+    """The banner must not leave a reader thinking the v2 gates are live."""
+    from analysis.trajectory import format_report
+    text = format_report(evaluate_gates(make_rows({n: 0.30 for n in SHAPES})))
+    assert "PROPOSED" in text and "NOT IN EFFECT" in text
