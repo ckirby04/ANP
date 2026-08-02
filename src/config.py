@@ -10,11 +10,44 @@ from __future__ import annotations
 import copy
 import dataclasses
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+# The dataset is not distributed with this repository and lives wherever the
+# person running it put it, so no path here may be a literal. ANP_DATA_ROOT is
+# the one thing a new machine has to set.
+DATA_ROOT_ENV = "ANP_DATA_ROOT"
+DATASET_ID = "Dataset002_BraTS_MEN"
+
+DATA_ROOT_HINT = (
+    f"Set {DATA_ROOT_ENV} to the directory that contains "
+    f"nnUNet/nnUNet_preprocessed/{DATASET_ID}.\n"
+    f"  PowerShell:  $env:{DATA_ROOT_ENV} = 'D:\\BraTS-MEN'\n"
+    f"  bash:        export {DATA_ROOT_ENV}=/data/BraTS-MEN\n"
+    "Or set data.preprocessed_dir and data.raw_dir explicitly in the config.\n"
+    "BraTS-MEN is not distributed with this repository and must be obtained "
+    "from its own source under its own terms."
+)
+
+
+def data_root() -> Path | None:
+    """The dataset root from the environment, or None if unset."""
+    value = os.environ.get(DATA_ROOT_ENV, "").strip()
+    return Path(value) if value else None
+
+
+def default_preprocessed_dir() -> str:
+    root = data_root()
+    return str(root / "nnUNet" / "nnUNet_preprocessed" / DATASET_ID) if root else ""
+
+
+def default_raw_dir() -> str:
+    root = data_root()
+    return str(root / "nnUNet" / "nnUNet_raw" / DATASET_ID) if root else ""
 
 # `rigl` is retained so the voided pilot remains reproducible; its per-layer
 # conservation cannot answer the between-layer question (see the VOID banner in
@@ -25,8 +58,11 @@ ARMS = ("dense", "static_sparse", "oneshot_prune", "rigl", "sparse_momentum")
 
 @dataclass
 class DataConfig:
-    preprocessed_dir: str = r"G:\BraTS-MEN\nnUNet\nnUNet_preprocessed\Dataset002_BraTS_MEN"
-    raw_dir: str = r"G:\BraTS-MEN\nnUNet\nnUNet_raw\Dataset002_BraTS_MEN"
+    # Derived from ANP_DATA_ROOT, empty when it is unset. Set explicitly in a
+    # config to override. Never a literal path: this repository must not ship
+    # one machine's filesystem layout as another machine's default.
+    preprocessed_dir: str = field(default_factory=default_preprocessed_dir)
+    raw_dir: str = field(default_factory=default_raw_dir)
     configuration: str = "3d_fullres"
     fold: int = 0
     oversample_foreground: float = 0.33
@@ -201,6 +237,20 @@ def from_dict(raw: dict) -> Config:
     return Config(**raw, **sections)
 
 
+def _field_default(f: dataclasses.Field) -> Any:
+    """Default value of a dataclass field, resolving default_factory.
+
+    The path fields use a factory so they can read ANP_DATA_ROOT at construction
+    time. `f.default` is MISSING for those, which would make CLI override
+    coercion fall over on exactly the fields most likely to be overridden.
+    """
+    if f.default is not dataclasses.MISSING:
+        return f.default
+    if f.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
+        return f.default_factory()  # type: ignore[misc]
+    return None
+
+
 def load_config(path: str | Path, overrides: list[str] | None = None) -> Config:
     """Load a YAML config and apply `section.key=value` CLI overrides.
 
@@ -225,7 +275,7 @@ def load_config(path: str | Path, overrides: list[str] | None = None) -> Config:
 
         # Coerce against the dataclass default so types survive the CLI.
         cls = _SECTIONS[parts[0]] if len(parts) == 2 else Config
-        defaults = {f.name: f.default for f in dataclasses.fields(cls)}
+        defaults = {f.name: _field_default(f) for f in dataclasses.fields(cls)}
         if leaf not in defaults:
             raise ValueError(f"override key {key!r} does not name a config field")
         current = target.get(leaf, defaults[leaf])

@@ -33,7 +33,7 @@ from torch.utils.data import DataLoader  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from config import Config, load_config  # noqa: E402
+from config import DATA_ROOT_HINT, Config, load_config  # noqa: E402
 from data.augmentation import (  # noqa: E402
     build_train_transforms,
     build_val_transforms,
@@ -461,6 +461,11 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config, args.set)
+    # Fail here with something actionable rather than deeper down with a
+    # FileNotFoundError on an empty path.
+    if not cfg.data.preprocessed_dir:
+        raise SystemExit("no dataset path is configured.\n\n" + DATA_ROOT_HINT)
+
     trainer = Trainer(cfg, controller=build_controller(cfg))
 
     cfg.save(trainer.run_dir / "config.yaml")

@@ -19,13 +19,18 @@ Outputs (written to results/diagnostics/, gitignored):
 import argparse
 import csv
 import random
+import sys
 from pathlib import Path
 
 import nibabel as nib
 import numpy as np
 from scipy import ndimage
 
-RAW = Path(r"G:\BraTS-MEN\nnUNet\nnUNet_raw\Dataset002_BraTS_MEN")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from config import DATA_ROOT_HINT, default_raw_dir  # noqa: E402
+
+RAW = Path(default_raw_dir()) if default_raw_dir() else None
 SMALL_DIAM_MM = 5.0
 # Equivalent-diameter threshold expressed as a voxel count, at 1mm isotropic.
 SMALL_MAX_VOXELS = (4.0 / 3.0) * np.pi * (SMALL_DIAM_MM / 2.0) ** 3
@@ -110,7 +115,7 @@ def summarize(rows):
     print(f"cases whose dominant lesion is itself sub-5mm: {len(solitary)}")
 
 
-def render(rows, out_png, n_show=20, seed=0):
+def render(rows, out_png, raw, n_show=20, seed=0):
     """Montage of sampled sub-5mm components over their T1c source."""
     import matplotlib
     matplotlib.use("Agg")
@@ -139,9 +144,9 @@ def render(rows, out_png, n_show=20, seed=0):
         cid = r["case_id"]
         if cid not in cache:
             t1c = np.asanyarray(
-                nib.load(str(RAW / "imagesTr" / f"{cid}_0001.nii.gz")).dataobj)
+                nib.load(str(raw / "imagesTr" / f"{cid}_0001.nii.gz")).dataobj)
             seg = np.asanyarray(
-                nib.load(str(RAW / "labelsTr" / f"{cid}.nii.gz")).dataobj)
+                nib.load(str(raw / "labelsTr" / f"{cid}.nii.gz")).dataobj)
             cache[cid] = (t1c, seg)
         t1c, seg = cache[cid]
 
@@ -180,11 +185,17 @@ def main():
                     help="number of training cases to scan (0 = all)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out-dir", type=Path, default=Path("results/diagnostics"))
+    ap.add_argument("--raw-dir", type=Path, default=RAW,
+                    help="nnU-Net raw dataset dir; defaults to ANP_DATA_ROOT")
     args = ap.parse_args()
 
-    labels = sorted((RAW / "labelsTr").glob("*.nii.gz"))
+    raw = args.raw_dir
+    if raw is None:
+        raise SystemExit("no raw dataset directory.\n\n" + DATA_ROOT_HINT)
+
+    labels = sorted((raw / "labelsTr").glob("*.nii.gz"))
     if not labels:
-        raise SystemExit(f"no labels found under {RAW / 'labelsTr'}")
+        raise SystemExit(f"no labels found under {raw / 'labelsTr'}")
     if args.n_cases:
         random.Random(args.seed).shuffle(labels)
         labels = labels[: args.n_cases]
@@ -206,7 +217,8 @@ def main():
     print(f"wrote {csv_path}  ({len(rows)} components from {len(labels)} cases)")
 
     summarize(rows)
-    render(rows, args.out_dir / "small_component_montage.png", seed=args.seed)
+    render(rows, args.out_dir / "small_component_montage.png", raw,
+           seed=args.seed)
 
 
 if __name__ == "__main__":

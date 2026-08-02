@@ -5,8 +5,10 @@ seed: 0
 device: cuda:0
 
 data:
-  preprocessed_dir: G:\BraTS-MEN\nnUNet\nnUNet_preprocessed\Dataset002_BraTS_MEN
-  raw_dir: G:\BraTS-MEN\nnUNet\nnUNet_raw\Dataset002_BraTS_MEN
+  # Dataset paths come from the ANP_DATA_ROOT environment variable.
+  # Uncomment and edit to override for this arm only:
+  # preprocessed_dir: /path/to/BraTS-MEN/nnUNet/nnUNet_preprocessed/Dataset002_BraTS_MEN
+  # raw_dir: /path/to/BraTS-MEN/nnUNet/nnUNet_raw/Dataset002_BraTS_MEN
   configuration: 3d_fullres
   fold: 0
   oversample_foreground: 0.33

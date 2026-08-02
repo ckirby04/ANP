@@ -210,9 +210,16 @@ def test_erk_and_uniform_init_start_at_same_global_density():
     from sparsity.controller import make_controller
     import tempfile
 
-    P = r"G:\BraTS-MEN\nnUNet\nnUNet_preprocessed\Dataset002_BraTS_MEN"
+    from config import DATA_ROOT_ENV, default_preprocessed_dir
+
+    P = default_preprocessed_dir()
+    if not P:
+        pytest.skip(
+            f"{DATA_ROOT_ENV} is not set, so nnUNetPlans.json cannot be located. "
+            f"Set it to the directory containing "
+            f"nnUNet/nnUNet_preprocessed/Dataset002_BraTS_MEN to run this test.")
     if not _P(P).exists():
-        pytest.skip("dataset plans not present")
+        pytest.skip(f"{DATA_ROOT_ENV} is set, but no dataset plans at {P}")
     plan = load_plan(P)
 
     shares = {}

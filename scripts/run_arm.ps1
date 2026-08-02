@@ -41,11 +41,30 @@ $ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
+# The dataset is not distributed with this repository. ANP_DATA_ROOT names the
+# directory holding it; nothing here is a literal path.
+if (-not $env:ANP_DATA_ROOT) {
+    throw @"
+ANP_DATA_ROOT is not set.
+
+Set it to the directory that contains nnUNet\nnUNet_preprocessed\Dataset002_BraTS_MEN:
+
+    `$env:ANP_DATA_ROOT = 'D:\BraTS-MEN'
+
+BraTS-MEN is not distributed with this repository and must be obtained from its
+own source under its own terms.
+"@
+}
+if (-not (Test-Path $env:ANP_DATA_ROOT)) {
+    throw "ANP_DATA_ROOT points at '$($env:ANP_DATA_ROOT)', which does not exist."
+}
+
 # nnU-Net emits warnings on every worker spawn without these. Read-only use;
-# nothing in this project writes to G:\BraTS-MEN.
-$env:nnUNet_raw = "G:\BraTS-MEN\nnUNet\nnUNet_raw"
-$env:nnUNet_preprocessed = "G:\BraTS-MEN\nnUNet\nnUNet_preprocessed"
-$env:nnUNet_results = "G:\BraTS-MEN\nnUNet\nnUNet_results"
+# nothing in this project writes to the dataset root.
+$nnunet = Join-Path $env:ANP_DATA_ROOT "nnUNet"
+$env:nnUNet_raw = Join-Path $nnunet "nnUNet_raw"
+$env:nnUNet_preprocessed = Join-Path $nnunet "nnUNet_preprocessed"
+$env:nnUNet_results = Join-Path $nnunet "nnUNet_results"
 
 # CUDA's default FASTEST_FIRST ordering disagrees with nvidia-smi's. Under it,
 # cuda:0 on this machine is the 8 GB RTX 3070 Ti rather than the 16 GB 5060 Ti.

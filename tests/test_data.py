@@ -23,16 +23,37 @@ from data.splits import (  # noqa: E402
     verify_split_available,
 )
 
-NNUNET = Path(r"G:\BraTS-MEN\nnUNet")
-PREPROCESSED = NNUNET / "nnUNet_preprocessed" / "Dataset002_BraTS_MEN"
+from config import (  # noqa: E402
+    DATA_ROOT_ENV,
+    default_preprocessed_dir,
+    default_raw_dir,
+)
+
+# Resolved from ANP_DATA_ROOT. Placeholders keep module import working when it
+# is unset; every test here is skipped in that case.
+PREPROCESSED = Path(default_preprocessed_dir() or "<unset>")
+RAW = Path(default_raw_dir() or "<unset>")
 DATA_DIR = PREPROCESSED / "nnUNetPlans_3d_fullres"
-RAW = NNUNET / "nnUNet_raw" / "Dataset002_BraTS_MEN"
 
 PATCH = (128, 160, 112)
 N_CHANNELS = 4
 
-pytestmark = pytest.mark.skipif(
-    not DATA_DIR.is_dir(), reason=f"preprocessed data not present at {DATA_DIR}")
+if not default_preprocessed_dir():
+    _SKIP = (
+        f"{DATA_ROOT_ENV} is not set, so the real dataset cannot be located. "
+        f"These tests read the actual preprocessed cases on purpose; a loader "
+        f"that passes on synthetic arrays and fails on real data is worth "
+        f"nothing. Set {DATA_ROOT_ENV} to the directory containing "
+        f"nnUNet/nnUNet_preprocessed/Dataset002_BraTS_MEN to run them. "
+        f"BraTS-MEN is not distributed with this repository."
+    )
+else:
+    _SKIP = (
+        f"{DATA_ROOT_ENV} is set, but no preprocessed data found at {DATA_DIR}. "
+        f"Expected nnU-Net 3d_fullres preprocessing to have been run."
+    ) if not DATA_DIR.is_dir() else ""
+
+pytestmark = pytest.mark.skipif(bool(_SKIP), reason=_SKIP or "data present")
 
 
 # --- splits ---------------------------------------------------------------

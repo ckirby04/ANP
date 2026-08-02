@@ -260,14 +260,26 @@ data are in this repository.
 pip install nnunetv2 torch numpy scipy nibabel pyyaml pytest
 ```
 
-Point the configs at your data by editing `preprocessed_dir` and `raw_dir` in
-`configs/*.yaml`, then:
+Point the code at your copy of the data with **`ANP_DATA_ROOT`**, which should
+be the directory containing `nnUNet/nnUNet_preprocessed/Dataset002_BraTS_MEN`:
+
+```
+$env:ANP_DATA_ROOT = 'D:\BraTS-MEN'      # PowerShell
+export ANP_DATA_ROOT=/data/BraTS-MEN      # bash
+```
+
+Individual arms can override it by uncommenting `preprocessed_dir` and `raw_dir`
+in the relevant `configs/*.yaml`. Then:
 
 ```
 .\scripts\run_arm.ps1 -Arm dense -Seed 0
 .\scripts\run_arm.ps1 -Arm sparse_momentum_uniform_init -Seed 0
 python -m pytest tests/ -q
 ```
+
+The test suite runs without the dataset. Tests that read the real preprocessed
+cases skip with a message naming `ANP_DATA_ROOT` and what to set it to; the rest
+pass. A clone with no data should show passes and skips, never failures.
 
 Run scripts are PowerShell and were written for Windows. `src/train.py` is
 platform-independent and can be invoked directly:
