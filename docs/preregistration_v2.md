@@ -105,6 +105,16 @@ claim. Units: budget-share percentage points (Euclidean).
 **B1 (moved off the ERK ray).** At the final checkpoint the residual exceeds
 **5 points**.
 
+> **Revised 2026-07-21, commit `a3ab865`, before any v2 arm was run.** B1 was
+> first stated in `7a0c026` as a magnitude test: D_ERK(final), the L1 distance
+> from ERK in per-stage budget share, exceeding **8 points**. That test measures
+> distance, not direction. A run that moved 15 points straight toward ERK and
+> stopped at 11 would still sit 11 from ERK and pass it, while having done
+> nothing but partially reproduce the ERK prior — the exact outcome Gate B
+> exists to exclude. The residual test replaces it and is the operative
+> statement. Both formulations predate every v2 run; no v2 arm has been run
+> under either. The superseded 8-point text is in the diff of `a3ab865`.
+
 - *Calibration (why 5).* Every replication case scores residual exactly 0.00:
   staying at init, drifting fully to ERK, and drifting partway and stopping
   (e.g. the "moves 15 toward ERK, stops at 11" case → residual 0.00, ERK-ward
@@ -154,14 +164,20 @@ Gate B passes iff B1 and B2.
 
 ## Open judgment calls for Clark (flagged, not resolved)
 
-1. **B1 threshold (8 pts).** Init is 26.4 from ERK, exact ERK is 0. 8 pts
-   demands the allocation land clearly closer to ERK than to init before it
-   counts as "not ERK." A stricter or looser cut is defensible.
-2. **Partial drift toward ERK is genuinely ambiguous.** If D_ERK(final) lands
-   between 8 and ~20, the allocation moved but partway toward ERK. B1 passes,
-   yet calling that "task-specific" vs "partial rediscovery" is a judgment the
-   thresholds cannot make. This is why the full D_ERK(t) trajectory is a
-   required raw output rather than only its endpoint.
+1. **B1 threshold (5 pts residual).** The init→ERK axis is 12.37 points long and
+   the maximum attainable residual over the reachable budget polytope is 64.39,
+   so 5 points is roughly 40 percent of the ERK scale and about 13x below the
+   ceiling. It clears a mild task-specific move (~3.9 in the calibration table)
+   without stamping it task-specific, and any positive residual already requires
+   movement ERK does not predict. A stricter or looser cut is defensible.
+2. **A large ERK-ward component with a small residual is genuinely ambiguous.**
+   The residual test cleanly excludes pure drift toward ERK, which scores
+   exactly 0. It does not sharply separate the middle: a run can post a large
+   ERK-ward component and a residual near the threshold, which reads as mostly
+   replication with a small task-specific component. No threshold decides that
+   case. This is why the residual ratio (residual / ‖v‖), the ERK-ward
+   component, and the full D_ERK(t) trajectory are all required raw outputs
+   rather than only the endpoint.
 3. **Two movement thresholds** (A1 density 0.05; B2 budget 3 pts) are not
    redundant: shallow stages can move density a lot while moving little budget,
    and deep stages the reverse.
