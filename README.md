@@ -394,12 +394,12 @@ without re-running.
 
 ## Licensing and attribution
 
-**This repository does not currently carry a license file.** Without one,
-default copyright applies and no reuse rights are granted. This is an oversight
-rather than an intent, and should be resolved before the work is relied on.
+**This repository is MIT licensed.** See [`LICENSE`](LICENSE).
 
 **No third-party source is vendored here.** nnU-Net and its ecosystem are
-imported as dependencies, not copied into this repository:
+imported as dependencies, not copied into this repository, so they are governed
+by their own terms and not by the license above. Versions tested, with license
+as declared in each distribution's own metadata:
 
 | Dependency | Version tested | License |
 |---|---|---|
@@ -408,14 +408,14 @@ imported as dependencies, not copied into this repository:
 | `acvl_utils` | 0.2.5 | Apache 2.0 |
 | PyTorch | 2.10.0+cu128 | BSD-3-Clause |
 | `nibabel` | 5.3.3 | MIT |
-
-`dynamic_network_architectures` (0.4.3) is also a dependency; its distribution
-metadata declares no license, so its terms are not asserted here.
+| `dynamic_network_architectures` | 0.4.3 | not declared in package metadata; unknown |
 
 Methods this work builds on, cited rather than reimplemented from scratch:
 RigL (Evci et al. 2020) for the prune-and-regrow schedule and the ERK
 allocation; sparse momentum (Dettmers & Zettlemoyer 2019) for global
 redistribution.
 
-**Data.** BraTS-MEN 2023 is subject to its own usage terms. It is not
-redistributed here in any form, including derived per-subject quantities.
+**Data.** BraTS-MEN 2023 is governed by its own usage terms, which apply to the
+dataset and not to the code in this repository. No part of it is redistributed
+here in any form, including derived per-subject quantities. Obtaining the data,
+and complying with those terms, is the responsibility of whoever runs this.
