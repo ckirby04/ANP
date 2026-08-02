@@ -350,6 +350,8 @@ def format_report(report: GateReport) -> str:
         f"Gate B                                     : {report.gate_b}",
         "",
         "These are the pre-registered conditions evaluated as facts.",
-        "Interpretation is Clark's call, per docs/preregistration.md.",
+        # docs/preregistration.md is the source of truth for these conditions;
+        # this function reports them and does not interpret them.
+        "Interpretation follows the protocol in docs/preregistration.md.",
     ]
     return "\n".join(lines)

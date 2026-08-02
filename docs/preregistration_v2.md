@@ -1,9 +1,26 @@
-# Pre-registration v2 (PROPOSED — PENDING APPROVAL, NOT IN EFFECT)
+# Pre-registration v2
 
-> **This document is a PROPOSAL.** No gate here is operative. Nothing runs until
-> Clark approves these conditions and thresholds. Until then the redesigned
-> mechanism (`sparse_momentum`, global conservation) has code and tests but no
-> agreed success criteria. The voided v1 gates are in `preregistration.md`.
+> **STATUS: PROPOSED — NOT IN EFFECT**
+>
+> The thresholds in this document are not operative. They become operative only
+> through a commit that changes the status line above to `IN EFFECT`. That
+> commit's hash and timestamp are the freeze record for this protocol, and can
+> be recovered from the history without relying on this document:
+>
+> ```
+> git log --format='%h %ad %s' --date=iso -S'IN EFFECT' -- docs/preregistration_v2.md
+> ```
+>
+> **No arm may be run against gates that are not IN EFFECT.** While the status
+> reads PROPOSED, the redesigned mechanism (`sparse_momentum`, global
+> conservation) has code and tests but no operative success criteria, and no
+> result obtained under it can be reported against these gates.
+>
+> This rule is documentary: it is enforced by the record, not by the code. The
+> check available to a reader is that the commit flipping the status must
+> predate the first run it judges, and both are visible in the history.
+>
+> The voided v1 gates are in `preregistration.md`.
 
 ## What changed and why the restatement is legitimate
 
@@ -87,7 +104,7 @@ so a network that moves 15 points straight toward ERK and stops at 11 still
 sits far from ERK and passes. That is exactly the Evci et al. replication Gate B
 exists to exclude.
 
-**The fix is geometric (Clark's formulation).** Let v = budget_share(final) −
+**The fix is geometric.** Let v = budget_share(final) −
 budget_share(init) and u = budget_share(ERK) − budget_share(init), both in the
 sum-zero tangent space. Decompose v along the ERK direction:
 
@@ -141,8 +158,9 @@ claim. Units: budget-share percentage points (Euclidean).
 its uniform-init budget share by more than **3 points**.
 
 - *Why keep it.* B1 already implies real movement (residual > 5 forces ‖v‖ > 5),
-  so B2 is a secondary guard rather than the primary one, retained per Clark's
-  instruction. It states the floor directly in per-stage budget space.
+  so B2 is a secondary guard rather than the primary one. It is retained because
+  it states the movement floor directly in per-stage budget space, which B1 does
+  only implicitly.
 - *Max attainable.* Stage 5 can drop from 39.45% to floor (~6.6%) = 32.8 pts;
   the shallow block can rise 14.27 pts. The 3-pt bar is ~10× below the ceiling
   and 0 at init.
@@ -162,7 +180,7 @@ Gate B passes iff B1 and B2.
   before the result is trusted.
 - **Churn** and **regrowth-informativeness**, as in v1.
 
-## Open judgment calls for Clark (flagged, not resolved)
+## Open judgment calls (flagged, not resolved)
 
 1. **B1 threshold (5 pts residual).** The init→ERK axis is 12.37 points long and
    the maximum attainable residual over the reachable budget polytope is 64.39,

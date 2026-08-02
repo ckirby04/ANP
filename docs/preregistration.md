@@ -6,7 +6,7 @@
 > gate, threshold, prediction, and outcome-table cell below is void with it.**
 > The content is preserved unchanged, not deleted: the record of the error is
 > part of the result. A redesigned mechanism and restated gates follow in
-> `preregistration_v2.md` (pending approval).
+> `preregistration_v2.md` (status: PROPOSED — NOT IN EFFECT).
 >
 > **Reason the pilot cannot test the hypothesis.** The kickoff spec required
 > "number pruned == number regrown, **per layer**". Equal prune and regrow
