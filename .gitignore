@@ -1,5 +1,29 @@
 # Derived artifacts. No data, no weights, no patient-adjacent files, ever.
-results/
+#
+# results/ is excluded wholesale, then exactly three aggregate artifacts per arm
+# are allowed back, so the run record is inspectable without publishing anything
+# image-derived:
+#
+#   provenance.json     run config, hardware, commit, timestamps
+#   trajectory.csv      per-layer density and churn, keyed on layer name
+#   training_log.jsonl  per-epoch loss and timing
+#
+# None of the three contains a case identifier, a file path, or any per-subject
+# quantity. Everything else under results/ stays out, including:
+#   - checkpoints (weights)
+#   - config.yaml (embeds absolute dataset paths)
+#   - console and launch logs
+#   - results/diagnostics/, which is per-case and carries lesion centroids
+results/**
+!results/*/
+!results/*/provenance.json
+!results/*/trajectory.csv
+!results/*/training_log.jsonl
+
+# Re-excluded after the allowances above. Per-subject and image-derived: case
+# IDs, lesion voxel counts and centroid coordinates. Never publishable.
+results/diagnostics/
+
 checkpoints/
 *.pth
 *.pt

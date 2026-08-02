@@ -1,0 +1,51 @@
+{
+  "run_id": "oneshot_prune_seed0",
+  "arm": "oneshot_prune",
+  "seed": 0,
+  "config_digest": "04ef561bccfe7bf1",
+  "split_digest": "0a275d88074b305a",
+  "n_train_cases": 680,
+  "n_val_cases": 170,
+  "patch_size": [
+    128,
+    160,
+    112
+  ],
+  "initial_patch_size": [
+    224,
+    228,
+    189
+  ],
+  "batch_size": 2,
+  "parameters": {
+    "total": 30788586,
+    "trainable": 30788586,
+    "sparsifiable": 14017536,
+    "n_sparsifiable_layers": 11
+  },
+  "device": "cuda:1",
+  "device_name": "NVIDIA GeForce RTX 3070 Ti",
+  "device_vram_gb": 8.0,
+  "cuda_device_order": "PCI_BUS_ID",
+  "visible_cuda_devices": [
+    {
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 5060 Ti",
+      "total_vram_gb": 15.93,
+      "capability": "12.0"
+    },
+    {
+      "index": 1,
+      "name": "NVIDIA GeForce RTX 3070 Ti",
+      "total_vram_gb": 8.0,
+      "capability": "8.6"
+    }
+  ],
+  "torch": "2.10.0+cu128",
+  "determinism": {
+    "use_deterministic_algorithms": false,
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": false,
+    "cublas_workspace_config": "<unset>"
+  }
+}

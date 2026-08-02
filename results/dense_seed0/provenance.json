@@ -1,0 +1,28 @@
+{
+  "run_id": "dense_seed0",
+  "arm": "dense",
+  "seed": 0,
+  "config_digest": "6f4598b86af4c796",
+  "split_digest": "0a275d88074b305a",
+  "n_train_cases": 680,
+  "n_val_cases": 170,
+  "patch_size": [
+    128,
+    160,
+    112
+  ],
+  "initial_patch_size": [
+    224,
+    228,
+    189
+  ],
+  "batch_size": 2,
+  "parameters": {
+    "total": 30788586,
+    "trainable": 30788586,
+    "sparsifiable": 14017536,
+    "n_sparsifiable_layers": 11
+  },
+  "device": "cuda:0",
+  "torch": "2.10.0+cu128"
+}
