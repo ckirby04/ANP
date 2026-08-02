@@ -188,6 +188,14 @@ several.
 
 Stated in advance so they can be wrong.
 
+> **Note added 2026-08-02. No prediction text below has been changed.**
+> Directional predictions were registered from two sources rather than one, so
+> that the study was not anchored on a single hypothesis about where capacity
+> would move. Both were recorded before any arm was run, and both are preserved
+> here exactly as registered, including their attributions. Prediction 2 is
+> marked non-discriminating in its own text, which was also recorded in advance
+> rather than concluded afterwards.
+
 ### Prediction 1 (Kirby)
 
 RigL drains the deepest stages (features 320, 320) and enriches stages 2-3.
