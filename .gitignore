@@ -4,9 +4,10 @@
 # are allowed back, so the run record is inspectable without publishing anything
 # image-derived:
 #
-#   provenance.json     run config, hardware, commit, timestamps
-#   trajectory.csv      per-layer density and churn, keyed on layer name
-#   training_log.jsonl  per-epoch loss and timing
+#   provenance.json                  run config, hardware, commit, timestamps
+#   trajectory.csv                   per-layer density and churn, by layer name
+#   training_log.jsonl               per-epoch loss and timing
+#   regrowth_informativeness.csv     per-layer top-k overlap between batches
 #
 # None of the three contains a case identifier, a file path, or any per-subject
 # quantity. Everything else under results/ stays out, including:
@@ -19,6 +20,7 @@ results/**
 !results/*/provenance.json
 !results/*/trajectory.csv
 !results/*/training_log.jsonl
+!results/*/regrowth_informativeness.csv
 
 # Re-excluded after the allowances above. Per-subject and image-derived: case
 # IDs, lesion voxel counts and centroid coordinates. Never publishable.

@@ -44,6 +44,18 @@
 >   (~0.75 at stage 0 to ~0.28 at stage 5). The regrowth signal is
 >   task-dependent in deep layers. This retires the "task-independent regrowth
 >   signal" explanation of a null before it was needed.
+>   >
+>   > **Correction, 2026-08-02. The bullet above is wrong as stated and is left
+>   > in place unchanged rather than rewritten.** The overlap falls with depth
+>   > at the first three probes, but at the fourth it inverts: stages 4 and 5
+>   > rise to 0.833 and 1.000, with three individual layers at exactly 1.000.
+>   > Averaged over all four probes the depth ordering is 0.708, 0.661, 0.485,
+>   > 0.399, 0.452, 0.460, which is not monotone. **The claim that this retires
+>   > the "task-independent regrowth signal" explanation of a null is
+>   > withdrawn**; that candidate explanation remains open, and the v2 protocol
+>   > carries the probe forward as a reported diagnostic for that reason. The
+>   > per-probe table is in `protocol_history.md`; the source data is published
+>   > at `results/rigl_seed0/regrowth_informativeness.csv`.
 > - `rigl_seed0` had the lowest validation loss of the four arms (-0.8491 vs
 >   dense -0.8292). n=1, loss not Dice, within-layer rewiring only. An
 >   observation, not a finding.

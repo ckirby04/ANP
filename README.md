@@ -232,11 +232,14 @@ and `training_log.jsonl` per arm — so the v1 failure is inspectable rather tha
 merely described. `results/rigl_seed0/trajectory.csv` shows a density column
 that is constant, which is the failure, visible directly.
 
-Two observations survive the void and are recorded as observations only, not as
-findings, and not as evidence for the hypothesis the run could not test:
-regrowth-informativeness top-k overlap falls with depth, and `rigl_seed0` had
-the lowest validation loss of the four arms at n=1, on loss rather than Dice,
-with within-layer rewiring only.
+Two observations survive the void, recorded as observations only — not as
+findings, and not as evidence for the hypothesis the run could not test.
+`rigl_seed0` reached the lowest final validation loss of the four arms
+(−0.8491 against dense −0.8292), at n=1, on loss rather than Dice, with
+within-layer rewiring only. The regrowth-informativeness probe falls with depth
+at its first three measurements and **inverts at the fourth**, which the
+original record did not capture; the correction and the per-probe values are in
+[`docs/protocol_history.md`](docs/protocol_history.md).
 
 Per-run timings and the commit each arm ran from are in
 [`RUNS.md`](RUNS.md), with the strength of that evidence stated there.
